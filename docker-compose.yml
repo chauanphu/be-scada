@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  scada_backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@timescaledb:5432/scada_db
+      - MQTT_BROKER=broker.emqx.io
+      - MQTT_PORT=1883
+  
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: scada_db
+    ports:
+      - "5432:5432"
+
