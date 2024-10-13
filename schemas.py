@@ -15,7 +15,8 @@ class UserRead(BaseModel):
     email: EmailStr
     username: str
     status: str
-    date_created: datetime
+    created: datetime
+    updated: datetime
     role: int
 
     class Config:

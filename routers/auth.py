@@ -62,6 +62,11 @@ def create_user(
     db.refresh(new_user)
     return new_user
 
+## GET ##
+@router.get("/users/me", response_model=UserRead)
+def read_current_user(current_user: Account = Depends(get_current_user)):
+    return current_user
+
 @router.get("/user/{user_id}", response_model=UserRead)
 def read_user(
     user_id: int, 
@@ -73,6 +78,12 @@ def read_user(
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
+@router.get("/users", response_model=list[UserRead])
+def read_users(db: Session = Depends(get_db), current_user: Account = Depends(admin_required)):
+    users = db.query(Account).all()
+    return users
+
+## PUT ##
 @router.put("/user/{user_id}", response_model=UserRead)
 def update_user(
     user_id: int, 
@@ -103,7 +114,3 @@ def delete_user(
     db.delete(user)
     db.commit()
     return {"detail": "User deleted successfully"}
-
-@router.get("/users/me", response_model=UserRead)
-def read_current_user(current_user: Account = Depends(get_current_user)):
-    return current_user
