@@ -8,6 +8,7 @@ from database.session import get_db
 from pydantic import BaseModel
 
 from models.Account import Account
+from routers.dependencies import admin_required
 from schemas import UserCreate, UserRead, UserUpdate
 from utils import hash_password
 
@@ -22,7 +23,9 @@ class Token(BaseModel):
 
 @router.post("/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    print(form_data.username, form_data.password)
     user = authenticate_user(db, form_data.username, form_data.password)
+    
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -35,7 +38,15 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/user", response_model=UserRead)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_user(
+    user: UserCreate, 
+    db: Session = Depends(get_db), 
+    current_user: Account = Depends(admin_required)
+    ):
+    # Only admin users can create new users
+    if current_user.role != 1:
+        raise HTTPException(status_code=403, detail="You do not have permission to perform this action")
+    
     db_user = db.query(Account).filter((Account.username == user.username) | (Account.email == user.email)).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Username or email already registered")
@@ -52,14 +63,22 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 @router.get("/user/{user_id}", response_model=UserRead)
-def read_user(user_id: int, db: Session = Depends(get_db), current_user: Account = Depends(get_current_user)):
+def read_user(
+    user_id: int, 
+    db: Session = Depends(get_db), 
+    current_user: Account = Depends(admin_required)
+    ):
     user = db.query(Account).filter(Account.user_id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
 @router.put("/user/{user_id}", response_model=UserRead)
-def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get_db), current_user: Account = Depends(get_current_user)):
+def update_user(
+    user_id: int, 
+    user_update: UserUpdate, 
+    db: Session = Depends(get_db), 
+    current_user: Account = Depends(admin_required)):
     user = db.query(Account).filter(Account.user_id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -73,7 +92,11 @@ def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get
     return user
 
 @router.delete("/user/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db), current_user: Account = Depends(get_current_user)):
+def delete_user(
+    user_id: int, 
+    db: Session = Depends(get_db), 
+    current_user: Account = Depends(admin_required)
+    ):
     user = db.query(Account).filter(Account.user_id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
