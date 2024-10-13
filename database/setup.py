@@ -2,6 +2,7 @@ from .__init__ import Base, engine
 
 # from models.user import User
 from models.Account import Account, Role
+from models.Status import Status
 from models.unit import *
 
 from decouple import config

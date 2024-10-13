@@ -26,5 +26,6 @@ class Unit(Base):
     updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     cluster = relationship('Cluster', back_populates='units')
+    statuses = relationship('Status', back_populates='unit')
 
 print("Unit, Cluster model created successfully.")

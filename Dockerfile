@@ -1,20 +1,25 @@
-# Use an official Python runtime as a parent image
-FROM python:3.10-slim
+# Stage 1: Build the application
+FROM python:3.9-slim AS builder
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy the current directory contents into the container at /app
-COPY . /app
+COPY requirements.txt .
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --user -r requirements.txt
 
-# Make port 80 available to the world outside this container
-EXPOSE 80
+COPY . .
 
-# Define environment variable
-ENV NAME World
+# Stage 2: Create the final image
+FROM python:3.9-slim AS final
 
-# Run uvicorn server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
+WORKDIR /app
+
+COPY --from=builder /root/.local /root/.local
+
+COPY . .
+
+ENV PATH=/root/.local/bin:$PATH
+
+EXPOSE 8000
+
+CMD alembic upgrade head & uvicorn main:app --host 0.0.0.0 --port 8000
