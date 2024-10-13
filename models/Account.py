@@ -27,6 +27,7 @@ class Account(Base):
     updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     role = Column(Integer,ForeignKey('role.role_id'), nullable=False, default=2)
 
+    clusters = relationship('Cluster', back_populates='account')
     role_rel = relationship("Role", backref="account")
 
     def __repr__(self):

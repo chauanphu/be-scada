@@ -2,6 +2,7 @@ from .__init__ import Base, engine
 
 # from models.user import User
 from models.Account import Account, Role
+from models.unit import *
 
 from decouple import config
 from .session import session
@@ -33,7 +34,6 @@ def create_default_roles():
         print(f"Error creating roles: {e}")
     finally:
         session.close()
-
 
 def create_default_admin():
     try:
