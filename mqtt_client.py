@@ -72,13 +72,20 @@ class Client(mqtt_client.Client):
         print(f"Command received: {command}")
         # Implement the logic to handle the command
         pass
+    
+    def command(self, unit_id: int, command: COMMAND, **kwargs):
+        # Publish the command to the unit
+        self.publish(
+            f"unit/{unit_id}/command", 
+            json.dumps({
+                "command": command.value,
+                **kwargs
+            })
+        )
 
     ## Override
     def on_connect(self, client, userdata, flags, reason_code, properties):
         print(f"Connected with result code {reason_code}")
-
-    def on_publish(self, client, userdata, mid, reason_code, properties):
-        print(f"Published `{mid}` message")
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         print(f"Disconnected with result code {reason_code}")

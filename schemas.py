@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, time
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -97,3 +97,11 @@ class Cluster(ClusterBase):
 
     class Config:
         orm_mode: True
+
+class Schedule(BaseModel):
+    turn_on_time: time
+    turn_off_time: time
+    
+class NodeControl(BaseModel):
+    toggle: Optional[bool] = None
+    schedule: Optional[Schedule] = None

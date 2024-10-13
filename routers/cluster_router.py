@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from models.Account import Account
 from models.unit import Cluster, Unit
-
 from .dependencies import get_current_user, admin_required
-from schemas import ClusterCreate, ClusterRead, ClusterReadFull, UnitCreate, UnitRead
+from schemas import ClusterCreate, ClusterRead, ClusterReadFull, NodeControl, UnitCreate, UnitRead
 from database.session import get_db
+from mqtt_client import client, COMMAND
 
 router = APIRouter(
     prefix='/clusters',
@@ -47,6 +47,21 @@ def create_cluster(cluster: ClusterCreate, db: Session = Depends(get_db), curren
     db.refresh(new_cluster)
     return new_cluster
 
+# Create a new unit in a cluster, only admin users can access this endpoint
+@router.post("/{cluster_id}/units", response_model=UnitRead)
+def create_unit(cluster_id: int, unit: UnitCreate, db: Session = Depends(get_db), current_user: Account = Depends(admin_required)):
+    new_unit = Unit(
+        name=unit.name,
+        cluster_id=cluster_id,
+        address=unit.address,
+        latitude=unit.latitude,
+        longitude=unit.longitude,
+    )
+    db.add(new_unit)
+    db.commit()
+    db.refresh(new_unit)
+    return new_unit
+
 # Delete a cluster, only admin users can access this endpoint
 @router.delete("/{cluster_id}")
 def delete_cluster(cluster_id: int, db: Session = Depends(get_db), current_user: Account = Depends(admin_required)):
@@ -61,3 +76,65 @@ def get_my_clusters(db: Session = Depends(get_db), current_user: Account = Depen
     clusters = db.query(Cluster).filter(Cluster.account_id == current_user.user_id).all()
     return clusters
 
+# PATCH /my-clusters/{cluster_id}
+@router.patch("/my-clusters/{cluster_id}")
+def control_cluster(cluster_id: int, node: NodeControl, db: Session = Depends(get_db), current_user: Account = Depends(get_current_user)):
+    # Get all units in the cluster of the manager
+    user_id = current_user.user_id
+    if current_user.role == 1:
+        print("Admin user")
+        units = db.query(Unit).join(Cluster).filter(Cluster.id == cluster_id).all()
+    else:
+        units = db.query(Unit).join(Cluster).filter(Cluster.account_id == user_id).all()
+    # Implement the logic to control the units
+    print("Units in the cluster:", units)
+    for unit in units:
+        # Publish the control message to the unit
+        if node.toggle:
+            command = COMMAND.ON if node.toggle else COMMAND.OFF
+            client.command(unit.id, command)
+        if node.schedule:
+            schedule_dict = node.schedule.model_dump()
+            # Raise error if turn_on_time is greater than or equal turn_off_time
+            if schedule_dict['turn_on_time'] >= schedule_dict['turn_off_time']:
+                return {"error": "turn_on_time should be less than turn_off_time"}
+            schedule_dict['turn_on_time'] = schedule_dict['turn_on_time'].strftime("%H:%M")
+            schedule_dict['turn_off_time'] = schedule_dict['turn_off_time'].strftime("%H:%M")
+            print("Schedule:", schedule_dict)
+            # Implement the logic to schedule the unit
+            client.command(unit.id, COMMAND.SCHEDULE, **schedule_dict)
+    return {"message": "Controlled the cluster successfully"}
+
+# Control a unit
+@router.patch("/my-clusters/{cluster_id}/units/{unit_id}")
+def control_unit(cluster_id: int, unit_id: int, node: NodeControl, db: Session = Depends(get_db), current_user: Account = Depends(get_current_user)):
+    # Get the unit of the manager
+    user_id = current_user.user_id
+    if current_user.role == 1:
+        print("Admin user")
+        unit = db.query(Unit).join(Cluster).filter(Unit.id == unit_id, Cluster.id == cluster_id).first()
+    # Return error if the unit does not belong to the manager
+    elif current_user.role == 2:
+        unit = db.query(Unit).join(Cluster).filter(Unit.id == unit_id, Cluster.account_id == user_id).first()
+        if not unit:
+            return HTTPException(status_code=403, detail="Unit does not belong to the manager")
+    # Return error 403 if the unit does not belong to the manager
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Implement the logic to control the unit
+    if node.toggle:
+        command = COMMAND.ON if node.toggle else COMMAND.OFF
+        client.command(unit.id, command)
+    if node.schedule:
+        schedule_dict = node.schedule.model_dump()
+        # Raise error if turn_on_time is greater than or equal turn_off_time
+        if schedule_dict['turn_on_time'] == schedule_dict['turn_off_time']:
+            return {"error": "turn_on_time should not be equal turn_off_time"}
+        schedule_dict['turn_on_time'] = schedule_dict['turn_on_time'].strftime("%H:%M")
+        schedule_dict['turn_off_time'] = schedule_dict['turn_off_time'].strftime("%H:%M")
+        print("Schedule:", schedule_dict)
+        # Implement the logic to schedule the unit
+        client.command(unit.id, COMMAND.SCHEDULE, **schedule_dict)
+
+    return HTTPException(status_code=200, detail="Controlled the unit successfully")
