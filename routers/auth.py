@@ -8,6 +8,7 @@ from database.session import get_db
 from pydantic import BaseModel
 
 from models.Account import Account
+from models.Audit import ActionEnum, Audit
 from routers.dependencies import admin_required
 from schemas import UserCreate, UserRead, UserUpdate
 from utils import hash_password
@@ -23,7 +24,6 @@ class Token(BaseModel):
 
 @router.post("/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    print(form_data.username, form_data.password)
     user = authenticate_user(db, form_data.username, form_data.password)
     
     if not user:
@@ -35,6 +35,11 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
+    # Create audit log
+    audit = Audit(user_id=user.user_id, action=ActionEnum.LOGIN, details=f"User {user.username} logged in")
+    db.add(audit)
+    db.commit()
+
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/user", response_model=UserRead)
@@ -60,6 +65,10 @@ def create_user(
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    # Create audit log
+    audit = Audit(user_id=current_user.user_id, action=ActionEnum.CREATE, details=f"User {new_user.username} created")
+    db.add(audit)
+    db.commit()
     return new_user
 
 ## GET ##
@@ -100,6 +109,10 @@ def update_user(
             setattr(user, key, value)
     db.commit()
     db.refresh(user)
+    # Create audit log
+    audit = Audit(user_id=current_user.user_id, action=ActionEnum.UPDATE, details=f"User {user.username} updated")
+    db.add(audit)
+    db.commit()
     return user
 
 @router.delete("/user/{user_id}")
@@ -113,4 +126,9 @@ def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     db.delete(user)
     db.commit()
+    # Create audit log
+    audit = Audit(user_id=current_user.user_id, action=ActionEnum.DELETE, details=f"User {user.username} deleted")
+    db.add(audit)
+    db.commit()
+
     return {"detail": "User deleted successfully"}

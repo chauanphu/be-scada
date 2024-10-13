@@ -11,6 +11,10 @@ class Status(Base):
     current = Column(Float)
     voltage = Column(Float)
     alive = Column(Boolean)
-
+    latitude = Column(Float)
+    longitude = Column(Float)
+    
     unit_id = Column(Integer, ForeignKey('units.id'))
     unit = relationship('Unit', back_populates='statuses')
+
+print("Status model created successfully.")

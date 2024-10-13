@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from models.Account import Account
+from models.Audit import ActionEnum, Audit
 from models.unit import Cluster, Unit
 from .dependencies import get_current_user, admin_required
 from schemas import ClusterCreate, ClusterRead, ClusterReadFull, NodeControl, UnitCreate, UnitRead
@@ -45,6 +46,10 @@ def create_cluster(cluster: ClusterCreate, db: Session = Depends(get_db), curren
 
     db.commit()
     db.refresh(new_cluster)
+    # Audit the action
+    audit = Audit(user_id=current_user.user_id, action=ActionEnum.CREATE, details=f"Created cluster {new_cluster.name} with {len(cluster.units)} units")
+    db.add(audit)
+    db.commit()
     return new_cluster
 
 # Create a new unit in a cluster, only admin users can access this endpoint
@@ -60,6 +65,10 @@ def create_unit(cluster_id: int, unit: UnitCreate, db: Session = Depends(get_db)
     db.add(new_unit)
     db.commit()
     db.refresh(new_unit)
+    # Audit the action
+    audit = Audit(user_id=current_user.user_id, action=ActionEnum.CREATE, details=f"Created unit {new_unit.name} in cluster {cluster_id}")
+    db.add(audit)
+    db.commit()
     return new_unit
 
 # Delete a cluster, only admin users can access this endpoint
@@ -68,7 +77,11 @@ def delete_cluster(cluster_id: int, db: Session = Depends(get_db), current_user:
     cluster = db.query(Cluster).get(cluster_id)
     db.delete(cluster)
     db.commit()
-    return {"message": "Cluster deleted successfully"}
+    # Audit the action
+    audit = Audit(user_id=current_user.user_id, action=ActionEnum.DELETE, details=f"Deleted cluster {cluster.name}")
+    db.add(audit)
+    db.commit()
+    return HTTPException(status_code=200, detail="Cluster deleted successfully")
 
 # Manager get their clusters
 @router.get("/my-clusters", response_model=list[ClusterReadFull])
@@ -81,13 +94,16 @@ def get_my_clusters(db: Session = Depends(get_db), current_user: Account = Depen
 def control_cluster(cluster_id: int, node: NodeControl, db: Session = Depends(get_db), current_user: Account = Depends(get_current_user)):
     # Get all units in the cluster of the manager
     user_id = current_user.user_id
+    cluster = db.query(Cluster).filter(Cluster.id == cluster_id).first()
+
     if current_user.role == 1:
-        print("Admin user")
         units = db.query(Unit).join(Cluster).filter(Cluster.id == cluster_id).all()
     else:
         units = db.query(Unit).join(Cluster).filter(Cluster.account_id == user_id).all()
     # Implement the logic to control the units
-    print("Units in the cluster:", units)
+    details = f"Set all units in cluster {cluster.name}: "
+    if node.toggle is None and node.schedule is None:
+        return HTTPException(status_code=400, detail="toggle or schedule is required")
     for unit in units:
         # Publish the control message to the unit
         if node.toggle:
@@ -103,6 +119,14 @@ def control_cluster(cluster_id: int, node: NodeControl, db: Session = Depends(ge
             print("Schedule:", schedule_dict)
             # Implement the logic to schedule the unit
             client.command(unit.id, COMMAND.SCHEDULE, **schedule_dict)
+    if node.toggle:
+        details += f"Turned {'on' if node.toggle else 'off'}; "
+    if node.schedule:
+        details += f"Scheduled to turn on at {schedule_dict['turn_on_time']} and turn off at {schedule_dict['turn_off_time']}; "
+    # Audit the action
+    audit = Audit(user_id=current_user.user_id, action=ActionEnum.UPDATE, details=details)
+    db.add(audit)
+    db.commit()
     return {"message": "Controlled the cluster successfully"}
 
 # Control a unit
@@ -122,19 +146,28 @@ def control_unit(cluster_id: int, unit_id: int, node: NodeControl, db: Session =
     else:
         raise HTTPException(status_code=403, detail="Forbidden")
 
+    details = f"Node {unit.name}: "
+    if node.toggle is None and node.schedule is None:
+        return HTTPException(status_code=400, detail="toggle or schedule is required")
     # Implement the logic to control the unit
     if node.toggle:
         command = COMMAND.ON if node.toggle else COMMAND.OFF
         client.command(unit.id, command)
+        details += f"Turned {unit.name} {'on' if node.toggle else 'off'}; "
     if node.schedule:
         schedule_dict = node.schedule.model_dump()
         # Raise error if turn_on_time is greater than or equal turn_off_time
         if schedule_dict['turn_on_time'] == schedule_dict['turn_off_time']:
-            return {"error": "turn_on_time should not be equal turn_off_time"}
+            raise HTTPException(status_code=400, detail="turn_on_time should be less than turn_off_time")
         schedule_dict['turn_on_time'] = schedule_dict['turn_on_time'].strftime("%H:%M")
         schedule_dict['turn_off_time'] = schedule_dict['turn_off_time'].strftime("%H:%M")
-        print("Schedule:", schedule_dict)
+
+        details += f"Scheduled {unit.name} to turn on at {schedule_dict['turn_on_time']} and turn off at {schedule_dict['turn_off_time']}"
         # Implement the logic to schedule the unit
         client.command(unit.id, COMMAND.SCHEDULE, **schedule_dict)
-
+    # Audit the action
+    audit = Audit(user_id=current_user.user_id, action=ActionEnum.UPDATE, details=details)
+    db.add(audit)
+    db.commit()
+    print("Added audit")
     return HTTPException(status_code=200, detail="Controlled the unit successfully")

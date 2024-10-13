@@ -2,8 +2,9 @@ from .__init__ import Base, engine
 
 # from models.user import User
 from models.Account import Account, Role
-from models.Status import Status
+from models.Status import *
 from models.unit import *
+from models.Audit import *
 
 from decouple import config
 from .session import session

@@ -1,5 +1,5 @@
-from datetime import datetime
-from sqlalchemy import Column, DateTime, Float, Integer, String, ForeignKey
+from datetime import datetime, time
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, ForeignKey, Time
 from sqlalchemy.orm import relationship
 from database.__init__ import Base
 
@@ -22,6 +22,11 @@ class Unit(Base):
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     cluster_id = Column(Integer, ForeignKey('clusters.id'))
+    toggle = Column(Boolean, default=False)
+    # On time and Off time
+    on_time = Column(Time, nullable=False, default=time(18, 0, 0))  # 6:00 PM
+    off_time = Column(Time, nullable=False, default=time(5, 0, 0))  # 5:00 AM
+
     created = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
