@@ -4,15 +4,19 @@ services:
   scada_backend:
     build: .
     image: scada_backend
+    container_name: scada_backend
     ports:
       - "8000:8000"
     env_file:
       - .env
     depends_on:
       - timescaledb
+    networks:
+      - intra-domain
 
   timescaledb:
     image:  timescale/timescaledb:latest-pg16
+    container_name: scada-db
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -21,6 +25,8 @@ services:
       - timescale_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - intra-domain
       
   pgadmin:
     image: dpage/pgadmin4
@@ -31,6 +37,9 @@ services:
       - "5050:80"
     depends_on:
       - timescaledb
-
+    networks:
+      - intra-domain
 volumes:
   timescale_data:
+networks:
+  intra-domain:

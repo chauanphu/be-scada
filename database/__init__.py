@@ -6,7 +6,14 @@ from decouple import config
 
 URL_DATABASE = config("DATABASE_URL")
 
-engine = create_engine(URL_DATABASE)
+connect_args = {
+    "keepalives": 1,
+    "keepalives_idle": 30,
+    "keepalives_interval": 10,
+    "keepalives_count": 5
+}
+
+engine = create_engine(URL_DATABASE, connect_args=connect_args)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

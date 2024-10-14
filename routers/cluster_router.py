@@ -116,7 +116,6 @@ def control_cluster(cluster_id: int, node: NodeControl, db: Session = Depends(ge
                 return {"error": "turn_on_time should be less than turn_off_time"}
             schedule_dict['turn_on_time'] = schedule_dict['turn_on_time'].strftime("%H:%M")
             schedule_dict['turn_off_time'] = schedule_dict['turn_off_time'].strftime("%H:%M")
-            print("Schedule:", schedule_dict)
             # Implement the logic to schedule the unit
             client.command(unit.id, COMMAND.SCHEDULE, **schedule_dict)
     if node.toggle:
@@ -135,7 +134,6 @@ def control_unit(cluster_id: int, unit_id: int, node: NodeControl, db: Session =
     # Get the unit of the manager
     user_id = current_user.user_id
     if current_user.role == 1:
-        print("Admin user")
         unit = db.query(Unit).join(Cluster).filter(Unit.id == unit_id, Cluster.id == cluster_id).first()
     # Return error if the unit does not belong to the manager
     elif current_user.role == 2:
@@ -169,5 +167,4 @@ def control_unit(cluster_id: int, unit_id: int, node: NodeControl, db: Session =
     audit = Audit(user_id=current_user.user_id, action=ActionEnum.UPDATE, details=details)
     db.add(audit)
     db.commit()
-    print("Added audit")
     return HTTPException(status_code=200, detail="Controlled the unit successfully")

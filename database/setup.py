@@ -61,6 +61,3 @@ def create_default_admin():
     except Exception as e:
         session.rollback()
         print(f"Error creating admin user: {e}")
-
-create_default_roles()
-create_default_admin()

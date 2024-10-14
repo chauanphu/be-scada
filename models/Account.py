@@ -12,6 +12,8 @@ class Role(Base):
     role_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     role_name = Column(String, nullable=False, unique=True)
 
+print("Role model created successfully.")
+
 class Account(Base):
     """
     Represents account of a user in the system.
