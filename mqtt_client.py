@@ -23,16 +23,16 @@ class COMMAND(Enum):
 @dataclass
 class Status:
     unit_id: int
-    # Time
     time: datetime
-    # Power consumption in watts
     power: float
-    # Working current in amperes
     current: float
-    # Input voltage in volts
     voltage: float
-    # Alive
-    alive: bool
+    toggle: bool
+    gps_log: str
+    gps_lat: str
+    power_factor: float
+    frequency: float
+    total_energy: float
 
 class Client(mqtt_client.Client):
     def __init__(self, client_id=MQTT_CLIENT_ID):
@@ -56,7 +56,11 @@ class Client(mqtt_client.Client):
                 unit_id=status.unit_id,
                 power = status.power,
                 current = status.current,
-                voltage = status.voltage
+                voltage = status.voltage,
+                toggle = status.toggle,
+                power_factor = status.power_factor,
+                frequency = status.frequency,
+                total_energy = status.total_energy
             )
             session.add(new_status)
             session.commit()
@@ -91,32 +95,42 @@ class Client(mqtt_client.Client):
         print(f"Disconnected with result code {reason_code}")
         
     def on_message(self, client, userdata, message):
-        # Extract information from the topic: rpi/unit/{id}/status or rpi/unit/{id}/command
-        topic = message.topic
-        # Acion is either status or command
-        match = re.match(r"unit/(\w+)/(?:status|command)", topic)
-        if match:
-            unit_id = match.group(1)
-            body = json.loads(message.payload)
-            # Body of status is power, current, voltage, alive
-            # Body of command is command
-            if "status" in topic:
-                status = Status(
-                    time=datetime.now(),
-                    unit_id=unit_id, 
-                    power=body["power"], 
-                    current=body["current"], 
-                    voltage=body["voltage"],
-                )
-                
-                self.handle_status(status)
-            elif "command" in topic:
-                command = COMMAND(body["command"])
-                self.handle_command(command)
-        else:
-            print("Invalid topic", topic)
-
-    def on_subscribe(self, client, userdata, mid, granted_qos, properties):
-        print(f"Subscribed to `{mid}` topic")
+        try:
+            # Extract information from the topic: rpi/unit/{id}/status or rpi/unit/{id}/command
+            topic = message.topic
+            # Action is either status or command
+            match = re.match(r"unit/(\w+)/(?:status|command)", topic)
+            if match:
+                unit_id = match.group(1)
+                body = json.loads(message.payload)
+                # Body of status is power, current, voltage, alive
+                # Body of command is command
+                if "status" in topic:
+                    status = Status(
+                        unit_id=unit_id,
+                        time=datetime.fromtimestamp(body["time"]),
+                        power=body["power"],
+                        current=body["current"],
+                        voltage=body["voltage"],
+                        toggle=body["toggle"],  # Default to True if not provided
+                        gps_log=body["gps_log"],
+                        gps_lat=body["gps_lat"],
+                        power_factor=body["power_factor"],
+                        frequency=body["frequency"],
+                        total_energy=body["total_energy"]
+                    )
+                    
+                    self.handle_status(status)
+                elif "command" in topic:
+                    command = COMMAND(body["command"])
+                    self.handle_command(command)
+            else:
+                print("Invalid topic", topic)
+        except json.JSONDecodeError:
+            print("Failed to decode JSON payload")
+        except KeyError as e:
+            print(f"Missing key in payload: {e}")
+        except Exception as e:
+            print(f"An error occurred: {e}")
     
 client = Client()

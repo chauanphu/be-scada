@@ -84,7 +84,7 @@ def delete_cluster(cluster_id: int, db: Session = Depends(get_db), current_user:
     return HTTPException(status_code=200, detail="Cluster deleted successfully")
 
 # Manager get their clusters
-@router.get("/my-clusters", response_model=list[ClusterReadFull])
+@router.get("/my-clusters", response_model=list[ClusterRead])
 def get_my_clusters(db: Session = Depends(get_db), current_user: Account = Depends(get_current_user)):
     clusters = db.query(Cluster).filter(Cluster.account_id == current_user.user_id).all()
     return clusters
