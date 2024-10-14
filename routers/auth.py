@@ -72,7 +72,7 @@ def create_user(
     return new_user
 
 ## GET ##
-@router.get("/users/me", response_model=UserRead)
+@router.get("/user/me", response_model=UserRead)
 def read_current_user(current_user: Account = Depends(get_current_user)):
     return current_user
 
@@ -87,7 +87,7 @@ def read_user(
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-@router.get("/users", response_model=list[UserRead])
+@router.get("/user", response_model=list[UserRead])
 def read_users(db: Session = Depends(get_db), current_user: Account = Depends(admin_required)):
     users = db.query(Account).all()
     return users
@@ -107,6 +107,31 @@ def update_user(
             setattr(user, key, hash_password(value))
         else:
             setattr(user, key, value)
+    db.commit()
+    db.refresh(user)
+    # Create audit log
+    audit = Audit(user_id=current_user.user_id, action=ActionEnum.UPDATE, details=f"User {user.username} updated")
+    db.add(audit)
+    db.commit()
+    return user
+
+## PATCH ##
+@router.patch("/user/{user_id}", response_model=UserRead)
+def patch_user(
+    user_id: int, 
+    user_update: UserUpdate, 
+    db: Session = Depends(get_db), 
+    current_user: Account = Depends(admin_required)):
+    user = db.query(Account).filter(Account.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    update_data = user_update.model_dump(exclude_none=True, exclude_unset=True)
+    for key, value in update_data.items():
+        if key == "password":
+            setattr(user, key, hash_password(value))
+        else:
+            setattr(user, key, value)
+            
     db.commit()
     db.refresh(user)
     # Create audit log

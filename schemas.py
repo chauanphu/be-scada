@@ -30,12 +30,15 @@ class UserRead(BaseModel):
         orm_mode = True
 
 class UserUpdate(BaseModel):
-    email: Optional[EmailStr]
-    username: Optional[str]
-    password: Optional[str]
-    status: Optional[str]
-    role: Optional[int]
+    email: Optional[EmailStr] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    status: Optional[str] = None
+    role: Optional[int] = None
 
+    class Config:
+        orm_mode = True
+        
 class UnitBase(BaseModel):
     name: str
     address: str
