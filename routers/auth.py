@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from models.Account import Account
 from models.Audit import ActionEnum, Audit
 from routers.dependencies import admin_required
-from schemas import UserCreate, UserRead, UserUpdate
+from schemas import RoleCheck, UserCreate, UserRead, UserUpdate
 from utils import hash_password
 
 router = APIRouter(
@@ -72,9 +72,13 @@ def create_user(
     return new_user
 
 ## GET ##
-@router.get("/user/me", response_model=UserRead)
+@router.get("/user/me", response_model=RoleCheck)
 def read_current_user(current_user: Account = Depends(get_current_user)):
-    return current_user
+    result = {
+        "role": current_user.role,
+        "is_admin": current_user.role == 1
+    }
+    return result
 
 @router.get("/user/{user_id}", response_model=UserRead)
 def read_user(

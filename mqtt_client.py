@@ -52,7 +52,7 @@ class Client(mqtt_client.Client):
         session = SessionLocal()
         try:
             new_status = Model_Status(
-                time=status.time,
+                time=datetime.now(),
                 unit_id=status.unit_id,
                 power = status.power,
                 current = status.current,
@@ -91,7 +91,7 @@ class Client(mqtt_client.Client):
     def on_connect(self, client, userdata, flags, reason_code, properties):
         print(f"Connected with result code {reason_code}")
 
-    def on_connect(self, client, userdata, flags, reason_code, properties):
+    def on_disconnect(self, client, userdata, flags, reason_code, properties):
         print(f"Disconnected with result code {reason_code}")
         
     def on_message(self, client, userdata, message):
