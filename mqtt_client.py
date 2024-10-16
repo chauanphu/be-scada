@@ -6,6 +6,8 @@ from decouple import config
 import regex as re
 import json
 from models.Status import Status as Model_Status
+import asyncio
+from websocket_manager import manager
 
 # Database
 from database.__init__ import SessionLocal
@@ -36,7 +38,7 @@ class Status:
 
 class Client(mqtt_client.Client):
     def __init__(self, client_id=MQTT_CLIENT_ID):
-        super().__init__(mqtt_client.CallbackAPIVersion.VERSION2, client_id)
+        super().__init__(mqtt_client.CallbackAPIVersion.VERSION2)
         self.HOST= MQTT_BROKER
         self.PORT= MQTT_PORT
         self.ID = MQTT_CLIENT_ID
@@ -65,6 +67,19 @@ class Client(mqtt_client.Client):
             session.add(new_status)
             session.commit()
             print("Status stored successfully.")
+            asyncio.run(manager.send_private_message(json.dumps({
+                "power": status.power,
+                "current": status.current,
+                "voltage": status.voltage,
+                "toggle": status.toggle,
+                "gps_log": status.gps_log,
+                "gps_lat": status.gps_lat,
+                "power_factor": status.power_factor,
+                "frequency": status.frequency,
+                "total_energy": status.total_energy
+            }), status.unit_id))
+            
+            print("Broadcasted")
         except Exception as e:
             print(f"Error storing status: {e}")
             session.rollback()
