@@ -19,8 +19,7 @@ MQTT_PORT = int(config("MQTT_PORT"))
 MQTT_CLIENT_ID = config("MQTT_CLIENT_ID")
 
 class COMMAND(Enum):
-    ON = "ON"
-    OFF = "OFF"
+    TOGGLE = "TOGGLE"
     SCHEDULE = "SCHEDULE"
 
 @dataclass
@@ -91,22 +90,6 @@ class Client(mqtt_client.Client):
         finally:
             session.close()
 
-    def handle_command(self, command: COMMAND):
-        # Handle the command
-        print(f"Command received: {command}")
-        # Implement the logic to handle the command
-        pass
-    
-    def command(self, unit_id: int, command: COMMAND, **kwargs):
-        # Publish the command to the unit
-        self.publish(
-            f"unit/{unit_id}/command", 
-            json.dumps({
-                "command": command.value,
-                **kwargs
-            })
-        )
-
     ## Override
     def on_connect(self, client, userdata, flags, reason_code, properties):
         print(f"Connected with result code {reason_code}")
@@ -118,8 +101,8 @@ class Client(mqtt_client.Client):
         try:
             # Extract information from the topic: rpi/unit/{id}/status or rpi/unit/{id}/command
             topic = message.topic
-            # Action is either status or command
-            match = re.match(r"unit/(\w+)/(?:status|command)", topic)
+            # Action is either status
+            match = re.match(r"unit/(\w+)/(?:status)", topic)
             if match:
                 unit_id = match.group(1)
                 body = json.loads(message.payload)
@@ -141,9 +124,6 @@ class Client(mqtt_client.Client):
                     )
                     
                     self.handle_status(status)
-                elif "command" in topic:
-                    command = COMMAND(body["command"])
-                    self.handle_command(command)
             else:
                 print("Invalid topic", topic)
         except json.JSONDecodeError:
