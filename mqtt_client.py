@@ -8,6 +8,7 @@ import json
 from models.Status import Status as Model_Status
 import asyncio
 from websocket_manager import manager
+from redis_client import client as redis_client
 
 # Database
 from database.__init__ import SessionLocal
@@ -53,6 +54,17 @@ class Client(mqtt_client.Client):
         # Store the status in the database
         session = SessionLocal()
         try:
+            body = json.dumps({
+                "power": status.power,
+                "current": status.current,
+                "voltage": status.voltage,
+                "toggle": status.toggle,
+                "gps_log": status.gps_log,
+                "gps_lat": status.gps_lat,
+                "power_factor": status.power_factor,
+                "frequency": status.frequency,
+                "total_energy": status.total_energy
+            })
             new_status = Model_Status(
                 time=datetime.now(),
                 unit_id=status.unit_id,
@@ -66,18 +78,11 @@ class Client(mqtt_client.Client):
             )
             session.add(new_status)
             session.commit()
+            # Store the status in Redis
+            redis_client.set(status.unit_id, body)
+            
             print("Status stored successfully.")
-            asyncio.run(manager.send_private_message(json.dumps({
-                "power": status.power,
-                "current": status.current,
-                "voltage": status.voltage,
-                "toggle": status.toggle,
-                "gps_log": status.gps_log,
-                "gps_lat": status.gps_lat,
-                "power_factor": status.power_factor,
-                "frequency": status.frequency,
-                "total_energy": status.total_energy
-            }), status.unit_id))
+            asyncio.run(manager.send_private_message(body), status.unit_id)
             
             print("Broadcasted")
         except Exception as e:

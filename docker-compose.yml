@@ -11,11 +11,12 @@ services:
       - .env
     depends_on:
       - timescaledb
+      - redis
     networks:
       - intra-domain
 
   timescaledb:
-    image:  timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:latest-pg16
     container_name: scada-db
     environment:
       POSTGRES_USER: user
@@ -27,7 +28,7 @@ services:
       - "5432:5432"
     networks:
       - intra-domain
-      
+
   pgadmin:
     image: dpage/pgadmin4
     environment:
@@ -39,7 +40,17 @@ services:
       - timescaledb
     networks:
       - intra-domain
+
+  redis:
+    image: redis:alpine
+    container_name: scada_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - intra-domain
+
 volumes:
   timescale_data:
+
 networks:
   intra-domain:
