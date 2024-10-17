@@ -14,10 +14,9 @@ class WebSocketManager:
         if unit_id not in self.active_connections:
             self.active_connections[unit_id] = []
         self.active_connections[unit_id].append(websocket)
-        previous_status = redis_client.get(unit_id).decode('utf-8')
+        previous_status = redis_client.get(unit_id)
         if previous_status:
-            print(f"Pinging previous status to unit {previous_status}")
-            await websocket.send_text(previous_status)
+            await websocket.send_text(previous_status.decode('utf-8'))
 
     def disconnect(self, websocket: WebSocket, unit_id: str):
         # Remove the websocket from the list of connections for this unit_id

@@ -82,7 +82,7 @@ class Client(mqtt_client.Client):
             redis_client.set(status.unit_id, body)
             
             print("Status stored successfully.")
-            asyncio.run(manager.send_private_message(body), status.unit_id)
+            asyncio.run(manager.send_private_message(body, status.unit_id))
             
             print("Broadcasted")
         except Exception as e:
