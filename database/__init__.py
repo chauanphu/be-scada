@@ -2,13 +2,10 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker 
 from sqlalchemy.ext.declarative import declarative_base
-from decouple import config
+from config import URL_DATABASE
 import psycopg2
 
 # Import all the models in the database
-
-URL_DATABASE = config("DATABASE_URL")
-
 connect_args = {
     "keepalives": 1,
     "keepalives_idle": 30,

@@ -3,15 +3,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from starlette import status
 from sqlalchemy.orm import Session
-from auth import ACCESS_TOKEN_EXPIRE_MINUTES, authenticate_user, create_access_token, get_current_user
+from auth import authenticate_user, create_access_token, get_current_user
 from database.session import get_db
 from pydantic import BaseModel
-
 from models.Account import Account
 from models.Audit import ActionEnum, Audit
 from routers.dependencies import admin_required
 from schemas import RoleCheck, UserCreate, UserRead, UserUpdate
 from utils import hash_password
+
+from config import ACCESS_TOKEN_EXPIRE_MINUTES
 
 router = APIRouter(
     prefix='/auth',

@@ -1,22 +1,18 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from paho.mqtt import client as mqtt_client
-from decouple import config
 import regex as re
 import json
-from models.Status import Status as Model_Status
 import asyncio
-from websocket_manager import manager
-from redis_client import client as redis_client
-
-# Database
+# Database & Caching
 from database.__init__ import SessionLocal
+from redis_client import client as redis_client
+# MQTT, Websocket
+from models.Status import Status as Model_Status
+from paho.mqtt import client as mqtt_client
+from websocket_manager import manager
+from config import MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID
 
-# MQTT setup
-MQTT_BROKER = config("MQTT_BROKER")
-MQTT_PORT = int(config("MQTT_PORT"))
-MQTT_CLIENT_ID = config("MQTT_CLIENT_ID")
 
 class COMMAND(Enum):
     TOGGLE = "TOGGLE"

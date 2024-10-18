@@ -11,10 +11,7 @@ from sqlalchemy.orm import Session
 from models.Account import Account
 from utils import verify_password
 from database import SessionLocal
-
-SECRET_KEY = "your-secret-key"  # Replace with a secure key
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+from config import SECRET_KEY, ALGORITHM
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
