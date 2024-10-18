@@ -35,7 +35,7 @@ def create_user(
     db.commit()
     db.refresh(new_user)
     # Create audit log
-    audit = Audit(user_id=current_user.user_id, action=ActionEnum.CREATE, details=f"User {new_user.username} created")
+    audit = Audit(email=current_user.email, action=ActionEnum.CREATE, details=f"User {new_user.username} created")
     db.add(audit)
     db.commit()
     return new_user
@@ -124,7 +124,7 @@ def update_user(
     db.commit()
     db.refresh(user)
     # Create audit log
-    audit = Audit(user_id=current_user.user_id, action=ActionEnum.UPDATE, details=f"User {user.username} updated")
+    audit = Audit(email=current_user.email, action=ActionEnum.UPDATE, details=f"User {user.username} updated")
     db.add(audit)
     db.commit()
     return user
@@ -151,7 +151,7 @@ def patch_user(
     db.commit()
     db.refresh(user)
     # Create audit log
-    audit = Audit(user_id=current_user.user_id, action=ActionEnum.UPDATE, details=f"User {user.username} updated")
+    audit = Audit(email=current_user.email, action=ActionEnum.UPDATE, details=f"User {user.username} updated")
     db.add(audit)
     db.commit()
     return user
@@ -172,7 +172,7 @@ def delete_user(
     db.delete(user)
     db.commit()
     # Create audit log
-    audit = Audit(user_id=current_user.user_id, action=ActionEnum.DELETE, details=f"User {user.username} deleted")
+    audit = Audit(email=current_user.email, action=ActionEnum.DELETE, details=f"User {user.username} deleted")
     db.add(audit)
     db.commit()
 
@@ -200,7 +200,7 @@ def create_role(
         new_role.permissions.append(permission_id)
     db.commit()
     # Add to audit log
-    audit = Audit(user_id=current_user.user_id, action=ActionEnum.CREATE, details=f"Create role {new_role.role_name}")
+    audit = Audit(email=current_user.email, action=ActionEnum.CREATE, details=f"Create role {new_role.role_name}")
     db.add(audit)
     db.commit()
     return new_role
@@ -232,7 +232,7 @@ def update_role(
     db.commit()
     db.refresh(role)
     # Add to audit log
-    audit = Audit(user_id=current_user.user_id, action=ActionEnum.UPDATE, details=f"Update role {role.role_name}")
+    audit = Audit(email=current_user.email, action=ActionEnum.UPDATE, details=f"Update role {role.role_name}")
     db.add(audit)
     db.commit()
     return role
@@ -245,10 +245,13 @@ def delete_role(role_id: int, current_user: Account = Depends(get_current_user) 
     # Protect SUPERADMIN role
     if role.role_name == "SUPERADMIN":
         raise HTTPException(status_code=403, detail="Cannot delete SUPERADMIN role")
+    # Restrict deletion of roles with users
+    if role.account:
+        raise HTTPException(status_code=403, detail="Cannot delete role with users")
     db.delete(role)
     db.commit()
     # Add to audit log
-    audit = Audit(user_id=current_user.user_id, action=ActionEnum.DELETE, details=f"Delete role {role.role_name}")
+    audit = Audit(email=current_user.email, action=ActionEnum.DELETE, details=f"Delete role {role.role_name}")
     db.add(audit)
     db.commit()
     return {"detail": "Role deleted successfully"}

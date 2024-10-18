@@ -1,24 +1,22 @@
 import datetime
 import enum
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Enum
+from sqlalchemy import Column, DateTime, String, Enum
 from sqlalchemy.orm import relationship
 from database.__init__ import Base
 
 class ActionEnum(enum.Enum):
-    CREATE = "CREATE"
-    UPDATE = "UPDATE"
-    DELETE = "DELETE"
-    LOGIN = "LOG IN"
-    LOGOUT = "LOG OUT"
-    READ = "READ"
+    CREATE = "TẠO"
+    UPDATE = "CẬP NHẬT"
+    DELETE = "XÓA"
+    LOGIN = "ĐĂNG NHẬP"
+    LOGOUT = "ĐĂNG XUẤT"
+    READ = "ĐỌC"
 
 class Audit(Base):
     __tablename__ = 'audit'
     timestamp = Column(DateTime, default=datetime.datetime.utcnow, primary_key=True)
-    user_id = Column(Integer, ForeignKey('account.user_id'))
+    email = Column(String(255), nullable=False)
     action = Column(Enum(ActionEnum), nullable=False, index=True)
     details = Column(String(255), nullable=False)
-
-    user = relationship('Account', backref='audits')
 
 print("Audit model created successfully.")

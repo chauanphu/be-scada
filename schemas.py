@@ -3,6 +3,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime, time
+from models.Audit import ActionEnum
 
 class RoleCheck(BaseModel):
     role: int
@@ -16,7 +17,7 @@ class UserCreate(BaseModel):
 
 class UserReadShort(BaseModel):
     user_id: int
-    email: EmailStr
+    username: str
 
     class Config:
         orm_mode = True
@@ -137,3 +138,11 @@ class Schedule(BaseModel):
 class NodeControl(BaseModel):
     toggle: Optional[bool] = None
     schedule: Optional[Schedule] = None
+
+class AuditLogResponse(BaseModel):
+    timestamp: datetime
+    action: ActionEnum
+    details: str
+
+    class Config:
+        orm_mode = True

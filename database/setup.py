@@ -45,6 +45,11 @@ def create_default_roles():
                 all_permissions = session.query(Permission).all()
                 new_role.permissions.extend(all_permissions)
                 session.commit()
+            if len(existing_role.permissions) != len(PermissionEnum):
+                all_permissions = session.query(Permission).all()
+                existing_role.permissions.extend(all_permissions)
+                session.commit()
+                
     except Exception as e:
         session.rollback()
         print(f"Error creating roles: {e}")

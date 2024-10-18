@@ -48,7 +48,7 @@ def create_cluster(cluster: ClusterCreate, db: Session = Depends(get_db), curren
     db.commit()
     db.refresh(new_cluster)
     # Audit the action
-    audit = Audit(user_id=current_user.user_id, action=ActionEnum.CREATE, details=f"Created cluster {new_cluster.name} with {len(cluster.units)} units")
+    audit = Audit(email=current_user.email, action=ActionEnum.CREATE, details=f"Created cluster {new_cluster.name} with {len(cluster.units)} units")
     db.add(audit)
     db.commit()
     return new_cluster
@@ -67,7 +67,7 @@ def create_unit(cluster_id: int, unit: UnitCreate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(new_unit)
     # Audit the action
-    audit = Audit(user_id=current_user.user_id, action=ActionEnum.CREATE, details=f"Created unit {new_unit.name} in cluster {cluster_id}")
+    audit = Audit(email=current_user.email, action=ActionEnum.CREATE, details=f"Created unit {new_unit.name} in cluster {cluster_id}")
     db.add(audit)
     db.commit()
     return new_unit
@@ -79,7 +79,7 @@ def delete_cluster(cluster_id: int, db: Session = Depends(get_db), current_user:
     db.delete(cluster)
     db.commit()
     # Audit the action
-    audit = Audit(user_id=current_user.user_id, action=ActionEnum.DELETE, details=f"Deleted cluster {cluster.name}")
+    audit = Audit(email=current_user.email, action=ActionEnum.DELETE, details=f"Deleted cluster {cluster.name}")
     db.add(audit)
     db.commit()
     return HTTPException(status_code=200, detail="Cluster deleted successfully")
@@ -124,7 +124,7 @@ def control_cluster(cluster_id: int, node: NodeControl, db: Session = Depends(ge
     if node.schedule:
         details += f"Scheduled to turn on at {schedule_dict['turn_on_time']} and turn off at {schedule_dict['turn_off_time']}; "
     # Audit the action
-    audit = Audit(user_id=current_user.user_id, action=ActionEnum.UPDATE, details=details)
+    audit = Audit(email=current_user.email, action=ActionEnum.UPDATE, details=details)
     db.add(audit)
     db.commit()
     return {"message": "Controlled the cluster successfully"}
@@ -165,7 +165,7 @@ def control_unit(cluster_id: int, unit_id: int, node: NodeControl, db: Session =
         # Implement the logic to schedule the unit
         client.command(unit.id, COMMAND.SCHEDULE, **schedule_dict)
     # Audit the action
-    audit = Audit(user_id=current_user.user_id, action=ActionEnum.UPDATE, details=details)
+    audit = Audit(email=current_user.email, action=ActionEnum.UPDATE, details=details)
     db.add(audit)
     db.commit()
     return HTTPException(status_code=200, detail="Controlled the unit successfully")
