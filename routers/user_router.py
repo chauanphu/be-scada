@@ -3,9 +3,9 @@ from auth import get_current_user
 from database import session
 from .dependencies import required_permission
 from config import PermissionEnum
-from models.Account import Account, Role
+from models.Account import Account, Permission, Role
 from models.Audit import ActionEnum, Audit
-from schemas import RoleRead, UserCreate, UserRead, UserUpdate
+from schemas import RoleCreate, RoleRead, RoleReadFull, RoleUpdate, UserCreate, UserRead, UserUpdate
 from utils import hash_password
 
 router = APIRouter(
@@ -177,3 +177,78 @@ def delete_user(
     db.commit()
 
     return {"detail": "User deleted successfully"}
+
+@router.get("/role/", response_model=list[RoleReadFull])
+def get_roles(db: session = Depends(session.get_db)):
+    # Get all roles except SUPERADMIN
+    roles = db.query(Role).filter(Role.role_name != "SUPERADMIN").all()
+    print(roles[0])
+    if not roles:
+        raise HTTPException(status_code=404, detail="Roles not found")
+    return roles
+
+@router.post("/role/", response_model=RoleRead)
+def create_role(
+    role: RoleCreate,
+    current_user: Account = Depends(get_current_user),
+    db: session = Depends(session.get_db)):
+    new_role = Role(role_name=role.role_name)
+    db.add(new_role)
+    db.commit()
+    db.refresh(new_role)
+    for permission_id in role.permissions:
+        new_role.permissions.append(permission_id)
+    db.commit()
+    # Add to audit log
+    audit = Audit(user_id=current_user.user_id, action=ActionEnum.CREATE, details=f"Create role {new_role.role_name}")
+    db.add(audit)
+    db.commit()
+    return new_role
+
+# PARTIAL UPDATE role
+@router.patch("/role/{role_id}", response_model=RoleReadFull)
+def update_role(
+    role_id: int, 
+    role_update: RoleUpdate,
+    current_user: Account = Depends(get_current_user),
+    db: session = Depends(session.get_db)):
+    # Partial update role
+    role = db.query(Role).filter(Role.role_id == role_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    update_data = role_update.model_dump(exclude_none=True, exclude_unset=True)
+    # Process each update
+    for key, value in update_data.items():
+        # If updating permissions (many-to-many relationship)
+        if key == "permissions":
+            # Assuming `value` is a list of permission IDs
+            permissions = db.query(Permission).filter(Permission.permission_id.in_(value)).all()
+            if len(permissions) != len(value):
+                raise HTTPException(status_code=404, detail="One or more permissions not found")
+            # Set the permission relationship with actual Permission instances
+            role.permissions = permissions
+        else:
+            setattr(role, key, value)  # For regular fields
+    db.commit()
+    db.refresh(role)
+    # Add to audit log
+    audit = Audit(user_id=current_user.user_id, action=ActionEnum.UPDATE, details=f"Update role {role.role_name}")
+    db.add(audit)
+    db.commit()
+    return role
+
+@router.delete("/role/{role_id}")
+def delete_role(role_id: int, current_user: Account = Depends(get_current_user) ,db: session = Depends(session.get_db)):
+    role = db.query(Role).filter(Role.role_id == role_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    # Protect SUPERADMIN role
+    if role.role_name == "SUPERADMIN":
+        raise HTTPException(status_code=403, detail="Cannot delete SUPERADMIN role")
+    db.delete(role)
+    db.commit()
+    # Add to audit log
+    audit = Audit(user_id=current_user.user_id, action=ActionEnum.DELETE, details=f"Delete role {role.role_name}")
+    db.add(audit)
+    db.commit()
+    return {"detail": "Role deleted successfully"}

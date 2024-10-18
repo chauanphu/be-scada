@@ -3,14 +3,15 @@ from sqlalchemy.orm import Session, joinedload
 from models.Account import Account
 from models.Audit import ActionEnum, Audit
 from models.unit import Cluster, Unit
-from .dependencies import get_current_user, admin_required
+from .dependencies import get_current_user, admin_required, required_permission
 from schemas import ClusterCreate, ClusterRead, ClusterReadFull, NodeControl, UnitCreate, UnitRead
 from database.session import get_db
 from mqtt_client import client, COMMAND
-
+from config import PermissionEnum
 router = APIRouter(
     prefix='/clusters',
-    tags=['clusters']
+    tags=['clusters'],
+    dependencies=[Depends(required_permission(PermissionEnum.MONITOR_SYSTEM))]
 )
 
 # Get all clusters, only admin users can access this endpoint

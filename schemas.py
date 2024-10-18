@@ -12,7 +12,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     username: str
     password: str
-    role: Optional[int] = 2
+    role: Optional[int]
 
 class UserReadShort(BaseModel):
     user_id: int
@@ -21,12 +21,30 @@ class UserReadShort(BaseModel):
     class Config:
         orm_mode = True
 
-class RoleRead(BaseModel):
-    role_id: int
-    role_name: str
+class PermissionRead(BaseModel):
+    permission_id: int
+    permission_name: str
 
     class Config:
         orm_mode = True
+
+class RoleRead(BaseModel):
+    role_id: int
+    role_name: str
+    
+    class Config:
+        orm_mode = True
+
+class RoleReadFull(RoleRead):
+    permissions: list[PermissionRead]
+
+class RoleCreate(BaseModel):
+    role_name: str
+    permissions: list[int]
+
+class RoleUpdate(BaseModel):
+    role_name: Optional[str] = None
+    permissions: Optional[list[int]] = None
 
 class UserRead(BaseModel):
     user_id: int
