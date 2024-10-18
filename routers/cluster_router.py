@@ -16,7 +16,8 @@ router = APIRouter(
 
 # Get all clusters, only admin users can access this endpoint
 @router.get("/", response_model=list[ClusterReadFull])
-def get_clusters(db: Session = Depends(get_db), current_user: Account = Depends(admin_required)):
+def get_clusters(
+    db: Session = Depends(get_db)):
     # Join the Cluster and Unit tables to get all the clusters and their units
     clusters = db.query(Cluster).options(
         joinedload(Cluster.units),
