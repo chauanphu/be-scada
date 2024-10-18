@@ -11,6 +11,7 @@ app = create_app()
 @app.websocket("/ws/unit/{unit_id}/status")
 async def websocket_route(websocket: WebSocket, unit_id: int):
     await websocket_endpoint(websocket, unit_id)
+        
 origins = [
     "http://localhost",
     "http://localhost:8000",

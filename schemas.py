@@ -70,10 +70,11 @@ class UserUpdate(BaseModel):
         orm_mode = True
         
 class UnitBase(BaseModel):
+    id: int
     name: str
-    address: str
-    latitude: float
-    longitude: float
+
+    class Config:
+        orm_mode: True
 
 class UnitCreate(UnitBase):
     pass
@@ -82,13 +83,7 @@ class UnitUpdate(UnitBase):
     pass
 
 class UnitRead(UnitBase):
-    name: str
-    address: str
-    latitude: float
-    longitude: float
-
-    class Config:
-        orm_mode: True
+    pass
 
 class Unit(UnitBase):
     id: int
@@ -98,6 +93,7 @@ class Unit(UnitBase):
         orm_mode: True
 
 class ClusterBase(BaseModel):
+    id: int
     name: str
 
 class ClusterCreate(ClusterBase):
@@ -108,8 +104,6 @@ class ClusterUpdate(ClusterBase):
     pass
 
 class ClusterRead(ClusterBase):
-    id: int
-    name: str
     units: list[UnitRead]
     class Config:
         orm_mode: True

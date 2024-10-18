@@ -103,7 +103,13 @@ def get_my_clusters(db: Session = Depends(get_db), current_user: Account = Depen
         clusters = db.query(Cluster).filter(Cluster.account_id == current_user.user_id).all()
     if not clusters:
         return HTTPException(status_code=404, detail="No clusters found")
-    return clusters
+    return [
+        ClusterRead(
+            id=cluster.id,
+            name=cluster.name,
+            units=[UnitRead(id=unit.id, name=unit.name) for unit in cluster.units]
+        ) for cluster in clusters
+    ]
 
 # PATCH /my-clusters/{cluster_id}
 @router.patch("/my-clusters/{cluster_id}")
