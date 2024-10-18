@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
-from models.Account import Account
+from models.Account import Account, Role
 from models.Audit import ActionEnum, Audit
 from models.unit import Cluster, Unit
 from .dependencies import get_current_user, admin_required, required_permission
@@ -13,6 +13,15 @@ router = APIRouter(
     tags=['clusters'],
     dependencies=[Depends(required_permission(PermissionEnum.MONITOR_SYSTEM))]
 )
+
+def isAdmin(current_user: Account, db: Session):
+    role_name = db.query(Role).filter(Role.role_id == current_user.role).first().role_name
+    if role_name not in ["ADMIN", "SUPERADMIN"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You cannot view or edit ADMIN or SUPERADMIN roles."
+        )
+    return current_user
 
 # Get all clusters, only admin users can access this endpoint
 @router.get("/", response_model=list[ClusterReadFull])
@@ -88,7 +97,12 @@ def delete_cluster(cluster_id: int, db: Session = Depends(get_db), current_user:
 # Manager get their clusters
 @router.get("/my-clusters", response_model=list[ClusterRead])
 def get_my_clusters(db: Session = Depends(get_db), current_user: Account = Depends(get_current_user)):
-    clusters = db.query(Cluster).filter(Cluster.account_id == current_user.user_id).all()
+    if isAdmin(current_user, db):
+        clusters = db.query(Cluster).all()
+    else:
+        clusters = db.query(Cluster).filter(Cluster.account_id == current_user.user_id).all()
+    if not clusters:
+        return HTTPException(status_code=404, detail="No clusters found")
     return clusters
 
 # PATCH /my-clusters/{cluster_id}
@@ -98,7 +112,7 @@ def control_cluster(cluster_id: int, node: NodeControl, db: Session = Depends(ge
     user_id = current_user.user_id
     cluster = db.query(Cluster).filter(Cluster.id == cluster_id).first()
 
-    if current_user.role == 1:
+    if not cluster:
         units = db.query(Unit).join(Cluster).filter(Cluster.id == cluster_id).all()
     else:
         units = db.query(Unit).join(Cluster).filter(Cluster.account_id == user_id).all()
