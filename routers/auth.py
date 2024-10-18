@@ -42,11 +42,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
 
     return {"access_token": access_token, "token_type": "bearer"}
 
+@router.get("/")
+async def check_token(current_user: Account = Depends(get_current_user)):
+    return status.HTTP_200_OK
+
 ## GET ##
-@router.get("/role/check", response_model=RoleCheck)
-def read_current_user(current_user: Account = Depends(get_current_user)):
-    result = {
-        "role": current_user.role,
-        "is_admin": current_user.role == 1
-    }
-    return result
+@router.get("/role/check", response_model=RoleReadFull)
+def read_current_user(current_user: Account = Depends(get_current_user), db: Session = Depends(get_db)):
+    role = db.query(Role).filter(Role.role_id == current_user.role).first()
+    return role
