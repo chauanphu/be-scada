@@ -15,7 +15,7 @@ router = APIRouter(
     dependencies=[Depends(required_permission(PermissionEnum.MANAGE_USER))]
 )
 
-@router.post("/user", response_model=UserRead)
+@router.post("/", response_model=UserRead)
 def create_user(
     user: UserCreate, 
     db: session = Depends(session.get_db), 
