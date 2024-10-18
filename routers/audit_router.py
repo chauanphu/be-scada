@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
 from database.session import get_db
@@ -32,3 +33,19 @@ async def get_audit_logs(
         ) for audit in audit_logs
     ]
     return result
+
+# Download the audit logs as CSV
+@router.get("/download", response_class=FileResponse)
+async def download_audit_logs(
+    db: Session = Depends(get_db)
+    ):
+    audit_logs = db.query(Audit).all()
+    if not audit_logs:
+        raise HTTPException(status_code=404, detail="No audit logs found")
+    csv_file = "timestamp,email,action,details\n"
+    for audit in audit_logs:
+        action = audit.action.value
+        csv_file += f"{audit.timestamp},{audit.email},{action},{audit.details}\n"
+    response = Response(content=csv_file, media_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=audit_logs.csv"
+    return response
