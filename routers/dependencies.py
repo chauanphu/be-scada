@@ -28,8 +28,6 @@ def required_permission(permission: PermissionEnum):
         # Get all permission names of the current user
         permissions = db.query(Role).filter(Role.role_id == current_user.role).first().permissions
         permission_names = [permission.permission_name for permission in permissions]
-        print(permission.value)
-        print(permission_names)
         if permission.value not in permission_names:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
