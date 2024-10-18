@@ -1,7 +1,6 @@
 from fastapi import WebSocket
 from app import create_app
 import uvicorn
-import redis_client
 from websocket_manager import websocket_endpoint
 
 app = create_app()

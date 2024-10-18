@@ -21,6 +21,13 @@ class UserReadShort(BaseModel):
     class Config:
         orm_mode = True
 
+class RoleRead(BaseModel):
+    role_id: int
+    role_name: str
+
+    class Config:
+        orm_mode = True
+
 class UserRead(BaseModel):
     user_id: int
     email: EmailStr
@@ -28,7 +35,7 @@ class UserRead(BaseModel):
     status: str
     created: datetime
     updated: datetime
-    role: int
+    role: RoleRead
 
     class Config:
         orm_mode = True
