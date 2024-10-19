@@ -156,6 +156,11 @@ def patch_user(
     for key, value in update_data.items():
         if key == "password":
             setattr(user, key, hash_password(value))
+        if key == "role":
+            role = db.query(Role).filter(Role.role_id == value['role_id']).first()
+            if not role:
+                raise HTTPException(status_code=404, detail="Role not found")
+            setattr(user, "role", role.role_id)
         else:
             setattr(user, key, value)
             
@@ -163,7 +168,18 @@ def patch_user(
     db.refresh(user)
     # Create audit log
     save_audit_log(db, email=current_user.email, action=ActionEnum.UPDATE, details=f"Cập nhật {user.username}")
-    return user
+    return UserRead(
+        user_id=user.user_id,
+        email=user.email,
+        username=user.username,
+        status=user.status,
+        created=user.created,
+        updated=user.updated,
+        role=RoleRead(
+            role_id=user.role_rel.role_id,
+            role_name=user.role_rel.role_name
+        )
+    )
 
 @router.delete("/{user_id}", dependencies=[Depends(required_permission([PermissionEnum.MANAGE_USER]))])
 def delete_user(

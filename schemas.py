@@ -64,7 +64,7 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
     status: Optional[str] = None
-    role: Optional[int] = None
+    role: Optional[RoleRead] = None
 
     class Config:
         orm_mode = True
