@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from typing import List
 from database.session import get_db
@@ -11,17 +13,23 @@ from schemas import AuditLogResponse
 router = APIRouter(
     prefix="/audit",
     tags=["audit"],
-    dependencies=[Depends(required_permission(PermissionEnum.VIEW_CHANGE_LOG))]
+    dependencies=[Depends(required_permission([PermissionEnum.VIEW_CHANGE_LOG, PermissionEnum.MONITOR_SYSTEM]))]
 )
-
-@router.get("/", response_model=List[AuditLogResponse])
+class PaginatedResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: List[AuditLogResponse]
+    
+@router.get("/", response_model=PaginatedResponse)
 async def get_audit_logs(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db)
     ):
     offset = (page - 1) * page_size
-    audit_logs = db.query(Audit).offset(offset).limit(page_size).all()
+    total = db.query(Audit).count()
+    audit_logs = db.query(Audit).order_by(desc(Audit.timestamp)).offset(offset).limit(page_size).all()
     if not audit_logs:
         raise HTTPException(status_code=404, detail="No audit logs found")
     result = [
@@ -32,14 +40,21 @@ async def get_audit_logs(
             details=audit.details
         ) for audit in audit_logs
     ]
-    return result
+    return PaginatedResponse(
+        total=total,
+        page=page,
+        page_size=page_size,
+        items=result
+    )
 
 # Download the audit logs as CSV
-@router.get("/download", response_class=FileResponse)
+@router.get("/auditlogs.csv", response_class=FileResponse)
 async def download_audit_logs(
     db: Session = Depends(get_db)
     ):
-    audit_logs = db.query(Audit).all()
+    audit_logs = db.query(Audit).order_by(
+
+    )
     if not audit_logs:
         raise HTTPException(status_code=404, detail="No audit logs found")
     csv_file = "timestamp,email,action,details\n"

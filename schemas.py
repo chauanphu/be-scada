@@ -139,6 +139,7 @@ class NodeControl(BaseModel):
 
 class AuditLogResponse(BaseModel):
     timestamp: datetime
+    email: EmailStr
     action: ActionEnum
     details: str
 
