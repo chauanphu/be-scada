@@ -74,11 +74,17 @@ class UnitBase(BaseModel):
     class Config:
         orm_mode: True
 
-class UnitCreate(UnitBase):
-    pass
+class UnitCreate(BaseModel):
+    name: str
+    address: str
+
+    class Config:
+        orm_mode: True
 
 class UnitUpdate(UnitBase):
-    pass
+    id: Optional[int] = None
+    name: Optional[str] = None
+    address: Optional[str] = None
 
 class UnitRead(UnitBase):
     pass
@@ -94,12 +100,13 @@ class ClusterBase(BaseModel):
     id: int
     name: str
 
-class ClusterCreate(ClusterBase):
-    account_id: int
+class ClusterCreate(BaseModel):
+    name: str
     units: list[UnitCreate]
 
 class ClusterUpdate(ClusterBase):
-    pass
+    name: Optional[str] = None
+    units: Optional[list[UnitUpdate]] = None
 
 class ClusterRead(ClusterBase):
     units: list[UnitRead]

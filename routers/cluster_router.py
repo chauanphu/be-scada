@@ -5,7 +5,7 @@ from models.Audit import ActionEnum
 from models.unit import Cluster, Unit
 from utils import save_audit_log
 from .dependencies import get_current_user, admin_required, required_permission
-from schemas import ClusterCreate, ClusterRead, ClusterReadFull, NodeControl, UnitCreate, UnitRead
+from schemas import ClusterCreate, ClusterRead, ClusterReadFull, ClusterUpdate, NodeControl, UnitCreate, UnitRead
 from database.session import get_db
 from mqtt_client import client, COMMAND
 from config import PermissionEnum
@@ -25,7 +25,9 @@ def isAdmin(current_user: Account, db: Session):
     return current_user
 
 # Get all clusters, only admin users can access this endpoint
-@router.get("/", response_model=list[ClusterReadFull], dependencies=[Depends(required_permission([PermissionEnum.MONITOR_SYSTEM]))]
+@router.get("/", 
+            response_model=list[ClusterReadFull], 
+            dependencies=[Depends(required_permission([PermissionEnum.MONITOR_SYSTEM]))]
 )
 def get_clusters(
     db: Session = Depends(get_db)):
@@ -40,7 +42,6 @@ def get_clusters(
 def create_cluster(cluster: ClusterCreate, db: Session = Depends(get_db), current_user: Account = Depends(admin_required)):
     new_cluster = Cluster(
     name=cluster.name,
-    account_id=cluster.account_id
 )
     db.add(new_cluster)
     db.commit()
@@ -51,8 +52,6 @@ def create_cluster(cluster: ClusterCreate, db: Session = Depends(get_db), curren
             name=unit.name,
             cluster_id=new_cluster.id,
             address=unit.address,
-            latitude=unit.latitude,
-            longitude=unit.longitude,
         )
         db.add(new_unit)
 
@@ -69,8 +68,6 @@ def create_unit(cluster_id: int, unit: UnitCreate, db: Session = Depends(get_db)
         name=unit.name,
         cluster_id=cluster_id,
         address=unit.address,
-        latitude=unit.latitude,
-        longitude=unit.longitude,
     )
     db.add(new_unit)
     db.commit()
@@ -78,6 +75,15 @@ def create_unit(cluster_id: int, unit: UnitCreate, db: Session = Depends(get_db)
     # Audit the action
     save_audit_log(db, current_user.email, ActionEnum.CREATE, f"Tạo unit {new_unit.name}")
     return new_unit
+
+# Update cluster
+@router.patch("/{cluster_id}", response_model=ClusterRead, dependencies=[Depends(required_permission([PermissionEnum.CONFIG_DEVICE]))])
+def update_cluster(cluster_id: int, cluster: ClusterUpdate, db: Session = Depends(get_db), current_user: Account = Depends(get_current_user)):
+    db.query(Cluster).filter(Cluster.id == cluster_id).update({"name": cluster.name})
+    db.commit()
+    # Audit the action
+    save_audit_log(db, current_user.email, ActionEnum.UPDATE, f"Cập nhật cụm {cluster.name}")
+    return db.query(Cluster).get(cluster_id)
 
 # Delete a cluster, only admin users can access this endpoint
 @router.delete("/{cluster_id}")
@@ -88,23 +94,6 @@ def delete_cluster(cluster_id: int, db: Session = Depends(get_db), current_user:
     # Audit the action
     save_audit_log(db, current_user.email, ActionEnum.DELETE, f"Xóa cluster {cluster.name}")
     return HTTPException(status_code=200, detail="Cluster deleted successfully")
-
-# Manager get their clusters
-@router.get("/my-clusters", response_model=list[ClusterRead])
-def get_my_clusters(db: Session = Depends(get_db), current_user: Account = Depends(get_current_user)):
-    if isAdmin(current_user, db):
-        clusters = db.query(Cluster).all()
-    else:
-        clusters = db.query(Cluster).filter(Cluster.account_id == current_user.user_id).all()
-    if not clusters:
-        return HTTPException(status_code=404, detail="No clusters found")
-    return [
-        ClusterRead(
-            id=cluster.id,
-            name=cluster.name,
-            units=[UnitRead(id=unit.id, name=unit.name) for unit in cluster.units]
-        ) for cluster in clusters
-    ]
 
 # Control a unit
 @router.patch(
