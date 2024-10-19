@@ -30,10 +30,6 @@ def required_permission(user_permissions: list[PermissionEnum]):
         permission_names = set([permission.permission_name for permission in permissions])
         # If the current user has none of the required permissions
         user_p_names = set([p.value for p in user_permissions])
-        # Join the two sets and check if the intersection is empty
-        print(user_p_names)
-        print(permission_names)
-        print(user_p_names.intersection(permission_names))
         if not user_p_names.intersection(permission_names):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

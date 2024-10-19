@@ -7,11 +7,12 @@ from auth import authenticate_user, create_access_token, get_current_user
 from database.session import get_db
 from pydantic import BaseModel
 from models.Account import Account, Role
-from models.Audit import ActionEnum, Audit
+from models.Audit import ActionEnum
 from routers.dependencies import required_permission
 from schemas import RoleCheck, RoleCreate, RoleRead, RoleReadFull
 
 from config import ACCESS_TOKEN_EXPIRE_MINUTES, PermissionEnum
+from utils import save_audit_log
 
 router = APIRouter(
     prefix='/auth',
@@ -36,9 +37,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
         data={"sub": user.username}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     # Create audit log
-    audit = Audit(email=user.email, action=ActionEnum.LOGIN, details=f"User {user.username} logged in")
-    db.add(audit)
-    db.commit()
+    action = ActionEnum.LOGIN
+    save_audit_log(db, user.email, action, f"{user.username} logged in")
 
     return {"access_token": access_token, "token_type": "bearer"}
 

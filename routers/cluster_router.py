@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from models.Account import Account, Role
-from models.Audit import ActionEnum, Audit
+from models.Audit import ActionEnum
 from models.unit import Cluster, Unit
+from utils import save_audit_log
 from .dependencies import get_current_user, admin_required, required_permission
 from schemas import ClusterCreate, ClusterRead, ClusterReadFull, NodeControl, UnitCreate, UnitRead
 from database.session import get_db
@@ -59,9 +60,7 @@ def create_cluster(cluster: ClusterCreate, db: Session = Depends(get_db), curren
     db.commit()
     db.refresh(new_cluster)
     # Audit the action
-    audit = Audit(email=current_user.email, action=ActionEnum.CREATE, details=f"Created cluster {new_cluster.name} with {len(cluster.units)} units")
-    db.add(audit)
-    db.commit()
+    save_audit_log(db, current_user.email, ActionEnum.CREATE, f"Tạo cluster {new_cluster.name}")
     return new_cluster
 
 # Create a new unit in a cluster, only admin users can access this endpoint
@@ -78,9 +77,7 @@ def create_unit(cluster_id: int, unit: UnitCreate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(new_unit)
     # Audit the action
-    audit = Audit(email=current_user.email, action=ActionEnum.CREATE, details=f"Created unit {new_unit.name} in cluster {cluster_id}")
-    db.add(audit)
-    db.commit()
+    save_audit_log(db, current_user.email, ActionEnum.CREATE, f"Tạo unit {new_unit.name}")
     return new_unit
 
 # Delete a cluster, only admin users can access this endpoint
@@ -90,9 +87,7 @@ def delete_cluster(cluster_id: int, db: Session = Depends(get_db), current_user:
     db.delete(cluster)
     db.commit()
     # Audit the action
-    audit = Audit(email=current_user.email, action=ActionEnum.DELETE, details=f"Deleted cluster {cluster.name}")
-    db.add(audit)
-    db.commit()
+    save_audit_log(db, current_user.email, ActionEnum.DELETE, f"Xóa cluster {cluster.name}")
     return HTTPException(status_code=200, detail="Cluster deleted successfully")
 
 # Manager get their clusters
@@ -124,7 +119,6 @@ def control_unit(
     current_user: Account = Depends(get_current_user)
     ):
     # Get the unit of the manager
-    user_id = current_user.user_id
     unit = db.query(Unit).filter(Unit.id == unit_id).first()
     if not unit:
         return HTTPException(status_code=404, detail="Unit not found")
@@ -136,7 +130,7 @@ def control_unit(
     if node.toggle:
         command = COMMAND.TOGGLE
         # client.command(unit.id, command)
-        details += f"Turned {unit.name} {'on' if node.toggle else 'off'}; "
+        details += f"{'Bật' if node.toggle else 'Tắt'} {unit.name}; "
     if node.schedule:
         schedule_dict = node.schedule.model_dump()
         # Raise error if turn_on_time is greater than or equal turn_off_time
@@ -145,11 +139,9 @@ def control_unit(
         schedule_dict['turn_on_time'] = schedule_dict['turn_on_time'].strftime("%H:%M")
         schedule_dict['turn_off_time'] = schedule_dict['turn_off_time'].strftime("%H:%M")
 
-        details += f"Scheduled {unit.name} to turn on at {schedule_dict['turn_on_time']} and turn off at {schedule_dict['turn_off_time']}"
+        details += f"Hẹn giờ {unit.name} mở từ {schedule_dict['turn_on_time']} đến {schedule_dict['turn_off_time']}"
         # Implement the logic to schedule the unit
         # client.command(unit.id, COMMAND.SCHEDULE, **schedule_dict)
     # Audit the action
-    audit = Audit(email=current_user.email, action=ActionEnum.UPDATE, details=details)
-    db.add(audit)
-    db.commit()
+    save_audit_log(db, current_user.email, ActionEnum.CONTROL, details)
     return HTTPException(status_code=200, detail="Controlled the unit successfully")

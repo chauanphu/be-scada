@@ -4,9 +4,9 @@ from database import session
 from .dependencies import required_permission
 from config import PermissionEnum
 from models.Account import Account, Permission, Role
-from models.Audit import ActionEnum, Audit
+from models.Audit import ActionEnum
 from schemas import RoleCreate, RoleRead, RoleReadFull, RoleUpdate, UserCreate, UserRead, UserUpdate
-from utils import hash_password
+from utils import hash_password, save_audit_log
 
 router = APIRouter(
     prefix='/user',
@@ -38,9 +38,8 @@ def create_user(
     db.commit()
     db.refresh(new_user)
     # Create audit log
-    audit = Audit(email=current_user.email, action=ActionEnum.CREATE, details=f"User {new_user.username} created")
-    db.add(audit)
-    db.commit()
+    save_audit_log(db, current_user.email, ActionEnum.CREATE, f"Tạo {new_user.username}")
+    
     return UserRead(
         user_id=new_user.user_id,
         email=new_user.email,
@@ -138,9 +137,7 @@ def update_user(
     db.commit()
     db.refresh(user)
     # Create audit log
-    audit = Audit(email=current_user.email, action=ActionEnum.UPDATE, details=f"User {user.username} updated")
-    db.add(audit)
-    db.commit()
+    save_audit_log(db, email=current_user.email, action=ActionEnum.UPDATE, details=f"Cập nhật {user.username}")
     return user
 
 ## PATCH ##
@@ -165,9 +162,7 @@ def patch_user(
     db.commit()
     db.refresh(user)
     # Create audit log
-    audit = Audit(email=current_user.email, action=ActionEnum.UPDATE, details=f"User {user.username} updated")
-    db.add(audit)
-    db.commit()
+    save_audit_log(db, email=current_user.email, action=ActionEnum.UPDATE, details=f"Cập nhật {user.username}")
     return user
 
 @router.delete("/{user_id}", response_model=UserRead, dependencies=[Depends(required_permission([PermissionEnum.MANAGE_USER]))])
@@ -186,9 +181,11 @@ def delete_user(
     db.delete(user)
     db.commit()
     # Create audit log
-    audit = Audit(email=current_user.email, action=ActionEnum.DELETE, details=f"User {user.username} deleted")
-    db.add(audit)
-    db.commit()
+    save_audit_log(
+        db,
+        email=current_user.email, 
+        action=ActionEnum.DELETE, 
+        details=f"Xóa {user.username}")
 
     return {"detail": "User deleted successfully"}
 
@@ -218,9 +215,7 @@ def create_role(
     new_role.permissions = permissions
     db.commit()
     # Add to audit log
-    audit = Audit(email=current_user.email, action=ActionEnum.CREATE, details=f"Create role {new_role.role_name}")
-    db.add(audit)
-    db.commit()
+    save_audit_log(db, current_user.email, ActionEnum.CREATE, f"Tạo chức vụ {new_role.role_name}")
     return RoleRead(
         role_id=new_role.role_id,
         role_name=new_role.role_name
@@ -253,9 +248,7 @@ def update_role(
     db.commit()
     db.refresh(role)
     # Add to audit log
-    audit = Audit(email=current_user.email, action=ActionEnum.UPDATE, details=f"Update role {role.role_name}")
-    db.add(audit)
-    db.commit()
+    save_audit_log(db, current_user.email, ActionEnum.UPDATE, f"Cập nhật chức vụ {role.role_name}")
     return role
 
 @router.delete("/role/{role_id}")
@@ -272,7 +265,5 @@ def delete_role(role_id: int, current_user: Account = Depends(get_current_user) 
     db.delete(role)
     db.commit()
     # Add to audit log
-    audit = Audit(email=current_user.email, action=ActionEnum.DELETE, details=f"Delete role {role.role_name}")
-    db.add(audit)
-    db.commit()
+    save_audit_log(db, current_user.email, ActionEnum.DELETE, f"Xóa chức vụ {role.role_name}")
     return {"detail": "Role deleted successfully"}
