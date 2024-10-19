@@ -12,10 +12,9 @@ router = APIRouter(
     prefix='/user',
     tags=['user'],
     # Only permission MANAGE_USER can access this route
-    dependencies=[Depends(required_permission(PermissionEnum.MANAGE_USER))]
 )
 
-@router.post("/", response_model=UserRead)
+@router.post("/", response_model=UserRead, dependencies=[Depends(required_permission([PermissionEnum.MANAGE_USER]))])
 def create_user(
     user: UserCreate, 
     db: session = Depends(session.get_db), 
@@ -86,7 +85,7 @@ def protect_admin(db: session, current_user: Account, target_user_id: int):
 def restrict_self_delete(current_user: Account, target_user_id: int):
     return current_user.user_id == target_user_id
 
-@router.get("/", response_model=list[UserRead])
+@router.get("/", response_model=list[UserRead], dependencies=[Depends(required_permission([PermissionEnum.MANAGE_USER, PermissionEnum.MONITOR_SYSTEM]))])
 def read_users(db: session = Depends(session.get_db)):
     # Get all users with their roles
     users = get_users_with_role(db)
@@ -119,7 +118,7 @@ def read_user(
     )
 
 ## PUT ##
-@router.put("/{user_id}", response_model=UserRead)
+@router.put("/{user_id}", response_model=UserRead, dependencies=[Depends(required_permission([PermissionEnum.MANAGE_USER]))])
 def update_user(
     user_id: int, 
     user_update: UserUpdate, 
@@ -145,7 +144,7 @@ def update_user(
     return user
 
 ## PATCH ##
-@router.patch("/{user_id}", response_model=UserRead)
+@router.patch("/{user_id}", response_model=UserRead, dependencies=[Depends(required_permission([PermissionEnum.MANAGE_USER]))])
 def patch_user(
     user_id: int, 
     user_update: UserUpdate, 
@@ -171,7 +170,7 @@ def patch_user(
     db.commit()
     return user
 
-@router.delete("/{user_id}")
+@router.delete("/{user_id}", response_model=UserRead, dependencies=[Depends(required_permission([PermissionEnum.MANAGE_USER]))])
 def delete_user(
     user_id: int, 
     db: session = Depends(session.get_db), 
@@ -211,8 +210,12 @@ def create_role(
     db.add(new_role)
     db.commit()
     db.refresh(new_role)
-    for permission_id in role.permissions:
-        new_role.permissions.append(permission_id)
+    # Query permissions
+    permissions = db.query(Permission).filter(Permission.permission_id.in_(role.permissions)).all()
+    if len(permissions) != len(role.permissions):
+        raise HTTPException(status_code=404, detail="One or more permissions not found")
+    # Set the permission relationship with actual Permission instances
+    new_role.permissions = permissions
     db.commit()
     # Add to audit log
     audit = Audit(email=current_user.email, action=ActionEnum.CREATE, details=f"Create role {new_role.role_name}")

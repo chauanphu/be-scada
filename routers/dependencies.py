@@ -20,18 +20,24 @@ def admin_required(
         )
     return current_user
 
-def required_permission(permission: PermissionEnum):
+def required_permission(user_permissions: list[PermissionEnum]):
     def check_permission(
         current_user: Account = Depends(get_current_user),
         db: Session = Depends(get_db)
     ):
         # Get all permission names of the current user
         permissions = db.query(Role).filter(Role.role_id == current_user.role).first().permissions
-        permission_names = [permission.permission_name for permission in permissions]
-        if permission.value not in permission_names:
+        permission_names = set([permission.permission_name for permission in permissions])
+        # If the current user has none of the required permissions
+        user_p_names = set([p.value for p in user_permissions])
+        # Join the two sets and check if the intersection is empty
+        print(user_p_names)
+        print(permission_names)
+        print(user_p_names.intersection(permission_names))
+        if not user_p_names.intersection(permission_names):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to perform this action."
+                detail="You do not have the required permissions to access this resource."
             )
         return current_user
     return check_permission
