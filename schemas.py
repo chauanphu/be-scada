@@ -9,18 +9,9 @@ class RoleCheck(BaseModel):
     role: int
     is_admin: bool
 
-class UserCreate(BaseModel):
-    email: EmailStr
-    username: str
-    password: str
-    role: Optional[int]
-
-class UserReadShort(BaseModel):
-    user_id: int
-    username: str
-
-    class Config:
-        orm_mode = True
+class RoleCreate(BaseModel):
+    role_name: str
+    permissions: list[int]
 
 class PermissionRead(BaseModel):
     permission_id: int
@@ -39,9 +30,18 @@ class RoleRead(BaseModel):
 class RoleReadFull(RoleRead):
     permissions: list[PermissionRead]
 
-class RoleCreate(BaseModel):
-    role_name: str
-    permissions: list[int]
+class UserCreate(BaseModel):
+    email: EmailStr
+    username: str
+    password: str
+    role: RoleRead
+
+class UserReadShort(BaseModel):
+    user_id: int
+    username: str
+
+    class Config:
+        orm_mode = True
 
 class RoleUpdate(BaseModel):
     role_name: Optional[str] = None

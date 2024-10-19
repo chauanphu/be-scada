@@ -25,11 +25,15 @@ def create_user(
     if db_user:
         raise HTTPException(status_code=400, detail="Username or email already registered")
     hashed_pwd = hash_password(user.password)
+    # Get role from the database
+    role = db.query(Role).filter(Role.role_id == user.role.role_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
     new_user = Account(
         email=user.email,
         username=user.username,
         password=hashed_pwd,
-        role=user.role
+        role=role.role_id
     )
     db.add(new_user)
     db.commit()
@@ -38,7 +42,18 @@ def create_user(
     audit = Audit(email=current_user.email, action=ActionEnum.CREATE, details=f"User {new_user.username} created")
     db.add(audit)
     db.commit()
-    return new_user
+    return UserRead(
+        user_id=new_user.user_id,
+        email=new_user.email,
+        username=new_user.username,
+        status=new_user.status,
+        created=new_user.created,
+        updated=new_user.updated,
+        role=RoleRead(
+            role_id=new_user.role_rel.role_id,
+            role_name=new_user.role_rel.role_name
+        )
+    )
 
 def get_all_user_except_superadmin(db: session):
     users = db.query(Account).join(Role).filter(Role.role_name != "SUPERADMIN").all()
@@ -104,7 +119,7 @@ def read_user(
     )
 
 ## PUT ##
-@router.put("/user/{user_id}", response_model=UserRead)
+@router.put("/{user_id}", response_model=UserRead)
 def update_user(
     user_id: int, 
     user_update: UserUpdate, 
@@ -130,7 +145,7 @@ def update_user(
     return user
 
 ## PATCH ##
-@router.patch("/user/{user_id}", response_model=UserRead)
+@router.patch("/{user_id}", response_model=UserRead)
 def patch_user(
     user_id: int, 
     user_update: UserUpdate, 
@@ -156,7 +171,7 @@ def patch_user(
     db.commit()
     return user
 
-@router.delete("/user/{user_id}")
+@router.delete("/{user_id}")
 def delete_user(
     user_id: int, 
     db: session = Depends(session.get_db), 
@@ -179,12 +194,12 @@ def delete_user(
     return {"detail": "User deleted successfully"}
 
 @router.get("/role/", response_model=list[RoleReadFull])
-def get_roles(db: session = Depends(session.get_db)):
+def get_roles(current_user: Account = Depends(get_current_user), db: session = Depends(session.get_db)):
     # Get all roles except SUPERADMIN
     roles = db.query(Role).filter(Role.role_name != "SUPERADMIN").all()
-    print(roles[0])
     if not roles:
         raise HTTPException(status_code=404, detail="Roles not found")
+
     return roles
 
 @router.post("/role/", response_model=RoleRead)
@@ -203,7 +218,10 @@ def create_role(
     audit = Audit(email=current_user.email, action=ActionEnum.CREATE, details=f"Create role {new_role.role_name}")
     db.add(audit)
     db.commit()
-    return new_role
+    return RoleRead(
+        role_id=new_role.role_id,
+        role_name=new_role.role_name
+    )
 
 # PARTIAL UPDATE role
 @router.patch("/role/{role_id}", response_model=RoleReadFull)
