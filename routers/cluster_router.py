@@ -143,5 +143,5 @@ def control_unit(
         # Implement the logic to schedule the unit
         # client.command(unit.id, COMMAND.SCHEDULE, **schedule_dict)
     # Audit the action
-    save_audit_log(db, current_user.email, ActionEnum.CONTROL, details)
+    save_audit_log(db, current_user.email, ActionEnum.UPDATE, details)
     return HTTPException(status_code=200, detail="Controlled the unit successfully")
