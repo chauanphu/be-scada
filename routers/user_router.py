@@ -165,7 +165,7 @@ def patch_user(
     save_audit_log(db, email=current_user.email, action=ActionEnum.UPDATE, details=f"Cập nhật {user.username}")
     return user
 
-@router.delete("/{user_id}", response_model=UserRead, dependencies=[Depends(required_permission([PermissionEnum.MANAGE_USER]))])
+@router.delete("/{user_id}", dependencies=[Depends(required_permission([PermissionEnum.MANAGE_USER]))])
 def delete_user(
     user_id: int, 
     db: session = Depends(session.get_db), 
