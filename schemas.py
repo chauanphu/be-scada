@@ -51,7 +51,6 @@ class UserRead(BaseModel):
     user_id: int
     email: EmailStr
     username: str
-    status: str
     created: datetime
     updated: datetime
     role: RoleRead
@@ -63,7 +62,6 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     username: Optional[str] = None
     password: Optional[str] = None
-    status: Optional[str] = None
     role: Optional[RoleRead] = None
 
     class Config:
@@ -112,7 +110,6 @@ class ClusterReadFull(ClusterBase):
     id: int
     name: str
     units: list[UnitRead]
-    account: UserReadShort
     created: datetime
     updated: datetime
     class Config:

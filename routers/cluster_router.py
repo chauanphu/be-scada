@@ -32,7 +32,6 @@ def get_clusters(
     # Join the Cluster and Unit tables to get all the clusters and their units
     clusters = db.query(Cluster).options(
         joinedload(Cluster.units),
-        joinedload(Cluster.account)
     ).all()
     return clusters
 
@@ -130,7 +129,9 @@ def control_unit(
     if node.toggle:
         command = COMMAND.TOGGLE
         # client.command(unit.id, command)
-        details += f"{'Bật' if node.toggle else 'Tắt'} {unit.name}; "
+        details += f"{'Bật' if node.toggle else 'Tắt'} {unit.name};"
+        # Save to the database
+        db.query(Unit).filter(Unit.id == unit_id).update({"toggle": node.toggle})
     if node.schedule:
         schedule_dict = node.schedule.model_dump()
         # Raise error if turn_on_time is greater than or equal turn_off_time
@@ -140,6 +141,7 @@ def control_unit(
         schedule_dict['turn_off_time'] = schedule_dict['turn_off_time'].strftime("%H:%M")
 
         details += f"Hẹn giờ {unit.name} mở từ {schedule_dict['turn_on_time']} đến {schedule_dict['turn_off_time']}"
+        db.query(Unit).filter(Unit.id == unit_id).update({"on_time": schedule_dict['turn_on_time'], "off_time": schedule_dict['turn_off_time']})
         # Implement the logic to schedule the unit
         # client.command(unit.id, COMMAND.SCHEDULE, **schedule_dict)
     # Audit the action

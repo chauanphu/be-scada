@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from auth import get_current_user
 from database import session
 from .dependencies import required_permission
@@ -44,7 +44,6 @@ def create_user(
         user_id=new_user.user_id,
         email=new_user.email,
         username=new_user.username,
-        status=new_user.status,
         created=new_user.created,
         updated=new_user.updated,
         role=RoleRead(
@@ -64,7 +63,6 @@ def get_users_with_role(db: session) -> list[UserRead]:
             user_id=user.user_id,
             email=user.email,
             username=user.username,
-            status=user.status,
             created=user.created,
             updated=user.updated,
             role=RoleRead(
@@ -107,7 +105,6 @@ def read_user(
         user_id=user.user_id,
         email=user.email,
         username=user.username,
-        status=user.status,
         created=user.created,
         updated=user.updated,
         role=RoleRead(
@@ -172,7 +169,6 @@ def patch_user(
         user_id=user.user_id,
         email=user.email,
         username=user.username,
-        status=user.status,
         created=user.created,
         updated=user.updated,
         role=RoleRead(

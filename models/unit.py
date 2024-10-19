@@ -7,11 +7,9 @@ class Cluster(Base):
     __tablename__ = 'clusters'
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
-    account_id = Column(Integer, ForeignKey('account.user_id'))
     created = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-    account = relationship('Account', back_populates='clusters')
     units = relationship("Unit", back_populates="cluster", cascade="all, delete-orphan")
 
 class Unit(Base):

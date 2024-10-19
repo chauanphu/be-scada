@@ -47,12 +47,10 @@ class Account(Base):
     email = Column(String, nullable=False, unique=True)
     username = Column(VARCHAR(20), nullable=False, unique=True)
     password = Column(String, nullable=False)
-    status = Column(Enum('Active', 'Inactive', 'Blocked', name='account_status'), nullable=False, default='Active')
     created = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     role = Column(Integer, ForeignKey('role.role_id'), nullable=False, default=2)
 
-    clusters = relationship('Cluster', back_populates='account')
     role_rel = relationship("Role", backref="account")
 
     def __repr__(self):
