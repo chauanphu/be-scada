@@ -15,7 +15,6 @@ def create_app() -> FastAPI:
     create_default_roles()
     create_default_admin()
     client.connect()
-    client.subscribe("unit/+/status")
     client.loop_start()
     app.include_router(api_router)
     return app
