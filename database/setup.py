@@ -6,8 +6,6 @@ from models.Status import *
 from models.unit import *
 from models.Audit import *
 
-from decouple import config
-from .session import session
 from utils import hash_password  # For hashing the password
 from config import ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_EMAIL, SUPERADMIN_USERNAME, SUPERADMIN_PASSWORD, SUPERADMIN_EMAIL, PermissionEnum
 # create_roles.py
@@ -74,7 +72,6 @@ def create_default_admin():
                 username=ADMIN_USERNAME,
                 password=hashed_pwd,
                 role=admin_role.role_id if admin_role else None,
-                status='Active'
             )
             # Add and commit the new admin user to the database
             session.add(new_admin)
@@ -94,7 +91,6 @@ def create_default_admin():
                 username=SUPERADMIN_USERNAME,
                 password=hashed_pwd,
                 role=superadmin_role.role_id if superadmin_role else None,
-                status='Active'
             )
             # Add and commit the new superadmin user to the database
             session.add(new_superadmin)
