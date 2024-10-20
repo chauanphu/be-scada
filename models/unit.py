@@ -16,9 +16,7 @@ class Unit(Base):
     __tablename__ = 'units'
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
-    address = Column(String, nullable=False)
-    latitude = Column(Float, nullable=False)
-    longitude = Column(Float, nullable=False)
+    mac = Column(String, nullable=False, unique=True)
     cluster_id = Column(Integer, ForeignKey('clusters.id'))
     toggle = Column(Boolean, default=False)
     # On time and Off time

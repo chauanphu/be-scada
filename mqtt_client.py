@@ -11,6 +11,7 @@ from database.__init__ import SessionLocal
 from redis_client import client as redis_client
 # MQTT, Websocket
 from models.Status import Status as Model_Status
+from models.unit import Unit
 from paho.mqtt import client as mqtt_client
 from websocket_manager import manager
 from config import MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID
@@ -70,52 +71,28 @@ class Client(mqtt_client.Client):
 
     def handle_status(self, unit_id, payload):
         body = json.loads(payload)
-        status = Status(
-            unit_id=unit_id,
-            time=datetime.fromtimestamp(body["time"]),
-            power=body["power"],
-            current=body["current"],
-            voltage=body["voltage"],
-            toggle=body.get("toggle", False),  # Default to True if not provided
-            gps_log=body["gps_log"],
-            gps_lat=body["gps_lat"],
-            power_factor=body["power_factor"],
-            frequency=body["frequency"],
-            total_energy=body["total_energy"]
-        )
+        print(body)
         # Store the status in the database
         session = SessionLocal()
         try:
-            body = json.dumps({
-                "power": status.power,
-                "current": status.current,
-                "voltage": status.voltage,
-                "toggle": status.toggle,
-                "gps_log": status.gps_log,
-                "gps_lat": status.gps_lat,
-                "power_factor": status.power_factor,
-                "frequency": status.frequency,
-                "total_energy": status.total_energy,
-                "status": "online",
-                "time": status.time.isoformat()
-            })
             new_status = Model_Status(
+                unit_id=unit_id,
                 time=datetime.now(),
-                unit_id=status.unit_id,
-                power=status.power,
-                current=status.current,
-                voltage=status.voltage,
-                toggle=status.toggle,
-                power_factor=status.power_factor,
-                frequency=status.frequency,
-                total_energy=status.total_energy
+                power=body['power'],
+                current=body['current'],
+                voltage=body['voltage'],
+                toggle=body['toggle'],
+                power_factor=body['power_factor'],
+                frequency=body['frequency'],
+                total_energy=body['total_energy']
             )
             session.add(new_status)
             session.commit()
             # Store the status in Redis
-            redis_client.set(status.unit_id, body)
+            body = json.dumps(body)
+            redis_client.set(unit_id, body)
             print("Status stored successfully.")
-            asyncio.run(manager.send_private_message(body, status.unit_id))
+            asyncio.run(manager.send_private_message(body, unit_id))
             print("Broadcasted")
         except Exception as e:
             print(f"Error storing status: {e}")
@@ -124,44 +101,17 @@ class Client(mqtt_client.Client):
             session.close()
 
     def handle_connection(self, unit_id, payload):
-        if payload == "online":
-            self.handle_device_online(unit_id)
-        elif payload == "offline":
-            self.handle_device_offline(unit_id)
-
-    def handle_device_online(self, unit_id):
-        # Update the device status to online
-        session = SessionLocal()
-        try:
-            status = {
-                "status": "online",
-                "time": datetime.now().isoformat()
-            }
-            redis_client.set(unit_id, json.dumps(status))
-            print(f"Device {unit_id} is online")
-            logging.info(f"Device {unit_id} is online")
-            asyncio.run(manager.send_private_message(json.dumps(status), unit_id))
-        except Exception as e:
-            print(f"Error handling device online: {e}")
-        finally:
-            session.close()
-
-    def handle_device_offline(self, unit_id):
-        # Update the device status to offline
-        session = SessionLocal()
-        try:
-            status = {
-                "status": "offline",
-                "time": datetime.now().isoformat()
-            }
-            redis_client.set(unit_id, json.dumps(status))
-            print(f"Device {unit_id} is offline")
-            logging.info(f"Device {unit_id} is offline")
-            asyncio.run(manager.send_private_message(json.dumps(status), unit_id))
-        except Exception as e:
-            print(f"Error handling device offline: {e}")
-        finally:
-            session.close()
+        if payload != "1" and payload != "0":
+            print("Invalid connection status")
+            return
+        status = {
+            "status": payload,
+            "time": datetime.now().isoformat()
+        }
+        redis_client.set(unit_id, json.dumps(status))
+        print(f"Device {unit_id} is {payload}")
+        logging.info(f"Device {unit_id} is {payload}")
+        asyncio.run(manager.send_private_message(json.dumps(status), unit_id))
 
     ## Override
     def on_connect(self, client, userdata, flags, reason_code, properties=None):
@@ -180,17 +130,24 @@ class Client(mqtt_client.Client):
             topic = message.topic
             match = re.match(r"unit/(\w+)/(status|alive)", topic)
             if match:
-                unit_id = match.group(1)
-                payload = message.payload.decode('utf-8')
-                if payload == "offline":
-                    # Handle device offline
-                    self.handle_device_offline(unit_id)
-                elif payload == "online":
-                    # Handle device online
-                    self.handle_device_online(unit_id)
-                else:
-                    # Assume payload is JSON
-                    self.handle_status(status)
+                mac_address, _type = match.groups()
+                # Get unit id from database by mac address
+                session = SessionLocal()
+                try:
+                    unit = session.query(Unit).filter(Unit.mac == mac_address).first()
+                    if not unit:
+                        print("Unit not found")
+                        return
+                    unit_id = unit.id
+                    if _type in self.incoming:
+                        payload = message.payload.decode('utf-8')                        
+                        self.incoming[_type](unit_id, payload)
+                    else:
+                        print("Invalid message type", _type)
+                except Exception as e:
+                    print(f"An error occurred: {e}")
+                finally:
+                    session.close()
             else:
                 print("Invalid topic", topic)
         except json.JSONDecodeError:

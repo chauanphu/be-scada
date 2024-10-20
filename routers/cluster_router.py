@@ -46,8 +46,9 @@ def create_cluster(cluster: ClusterCreate, db: Session = Depends(get_db), curren
     db.add(new_cluster)
     db.commit()
     db.refresh(new_cluster)
-
-    for unit in cluster.units:
+    if cluster.units is None:
+        return new_cluster
+    for unit in cluster.units:  
         new_unit = Unit(
             name=unit.name,
             cluster_id=new_cluster.id,
@@ -67,7 +68,7 @@ def create_unit(cluster_id: int, unit: UnitCreate, db: Session = Depends(get_db)
     new_unit = Unit(
         name=unit.name,
         cluster_id=cluster_id,
-        address=unit.address,
+        mac=unit.mac,
     )
     db.add(new_unit)
     db.commit()

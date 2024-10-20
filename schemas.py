@@ -76,15 +76,13 @@ class UnitBase(BaseModel):
 
 class UnitCreate(BaseModel):
     name: str
-    address: str
-
+    mac: str
     class Config:
         orm_mode: True
 
 class UnitUpdate(UnitBase):
     id: Optional[int] = None
     name: Optional[str] = None
-    address: Optional[str] = None
 
 class UnitRead(UnitBase):
     pass
@@ -102,7 +100,7 @@ class ClusterBase(BaseModel):
 
 class ClusterCreate(BaseModel):
     name: str
-    units: list[UnitCreate]
+    units: Optional[list[UnitCreate]] = None
 
 class ClusterUpdate(ClusterBase):
     name: Optional[str] = None
