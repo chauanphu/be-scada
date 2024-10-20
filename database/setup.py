@@ -41,11 +41,7 @@ def create_default_roles():
                 session.commit()
                 # Assign all permissions to the admin role
                 all_permissions = session.query(Permission).all()
-                new_role.permissions.extend(all_permissions)
-                session.commit()
-            if len(existing_role.permissions) != len(PermissionEnum):
-                all_permissions = session.query(Permission).all()
-                existing_role.permissions.extend(all_permissions)
+                new_role.permissions = all_permissions
                 session.commit()
                 
     except Exception as e:
