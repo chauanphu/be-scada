@@ -59,12 +59,30 @@ class Client(mqtt_client.Client):
         self.ID = MQTT_CLIENT_ID
         print("Initiating...")
         print(f"Host: {self.HOST}, Port: {self.PORT}, ID: {self.ID}")
+        self.incoming = {
+            "status": self.handle_status,
+            "alive": self.handle_connection,
+        }
 
     def connect(self, keepalive=60):
         print("Connecting...")
         super().connect(self.HOST, self.PORT, keepalive)
 
-    def handle_status(self, status: Status):
+    def handle_status(self, unit_id, payload):
+        body = json.loads(payload)
+        status = Status(
+            unit_id=unit_id,
+            time=datetime.fromtimestamp(body["time"]),
+            power=body["power"],
+            current=body["current"],
+            voltage=body["voltage"],
+            toggle=body.get("toggle", False),  # Default to True if not provided
+            gps_log=body["gps_log"],
+            gps_lat=body["gps_lat"],
+            power_factor=body["power_factor"],
+            frequency=body["frequency"],
+            total_energy=body["total_energy"]
+        )
         # Store the status in the database
         session = SessionLocal()
         try:
@@ -104,6 +122,12 @@ class Client(mqtt_client.Client):
             session.rollback()
         finally:
             session.close()
+
+    def handle_connection(self, unit_id, payload):
+        if payload == "online":
+            self.handle_device_online(unit_id)
+        elif payload == "offline":
+            self.handle_device_offline(unit_id)
 
     def handle_device_online(self, unit_id):
         # Update the device status to online
@@ -154,7 +178,7 @@ class Client(mqtt_client.Client):
         try:
             # Extract information from the topic: unit/{id}/status
             topic = message.topic
-            match = re.match(r"unit/(\w+)/status", topic)
+            match = re.match(r"unit/(\w+)/(status|alive)", topic)
             if match:
                 unit_id = match.group(1)
                 payload = message.payload.decode('utf-8')
@@ -166,20 +190,6 @@ class Client(mqtt_client.Client):
                     self.handle_device_online(unit_id)
                 else:
                     # Assume payload is JSON
-                    body = json.loads(payload)
-                    status = Status(
-                        unit_id=unit_id,
-                        time=datetime.fromtimestamp(body["time"]),
-                        power=body["power"],
-                        current=body["current"],
-                        voltage=body["voltage"],
-                        toggle=body.get("toggle", True),  # Default to True if not provided
-                        gps_log=body["gps_log"],
-                        gps_lat=body["gps_lat"],
-                        power_factor=body["power_factor"],
-                        frequency=body["frequency"],
-                        total_energy=body["total_energy"]
-                    )
                     self.handle_status(status)
             else:
                 print("Invalid topic", topic)
