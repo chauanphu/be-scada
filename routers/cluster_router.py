@@ -48,12 +48,15 @@ def create_cluster(cluster: ClusterCreate, db: Session = Depends(get_db), curren
     db.refresh(new_cluster)
     if cluster.units is None:
         return new_cluster
+    if len(cluster.units) == 0:
+        return new_cluster
     for unit in cluster.units:  
         new_unit = Unit(
             name=unit.name,
             cluster_id=new_cluster.id,
-            address=unit.address,
+            mac=unit.mac,
         )
+        print
         db.add(new_unit)
 
     db.commit()
@@ -61,6 +64,27 @@ def create_cluster(cluster: ClusterCreate, db: Session = Depends(get_db), curren
     # Audit the action
     save_audit_log(db, current_user.email, ActionEnum.CREATE, f"Tạo cluster {new_cluster.name}")
     return new_cluster
+
+@router.put("/{cluster_id}", response_model=ClusterRead, dependencies=[Depends(required_permission([PermissionEnum.CONFIG_DEVICE]))])
+def update_cluster(cluster_id: int, cluster: ClusterUpdate, db: Session = Depends(get_db), current_user: Account = Depends(get_current_user)):
+    db.query(Cluster).filter(Cluster.id == cluster_id).update({"name": cluster.name})
+    db.commit()
+    # Update the units, create new units if no id is provided
+    if cluster.units is not None:
+        for unit in cluster.units:
+            if unit.id is None:
+                new_unit = Unit(
+                    name=unit.name,
+                    cluster_id=cluster_id,
+                    mac=unit.mac,
+                )
+                db.add(new_unit)
+            else:
+                db.query(Unit).filter(Unit.id == unit.id).update({"name": unit.name, "mac": unit.mac})
+    db.commit()
+    # Audit the action
+    save_audit_log(db, current_user.email, ActionEnum.UPDATE, f"Cập nhật cụm {cluster.name}")
+    return db.query(Cluster).get(cluster_id)
 
 # Create a new unit in a cluster, only admin users can access this endpoint
 @router.post("/{cluster_id}/units", response_model=UnitRead)

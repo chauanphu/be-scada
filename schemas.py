@@ -83,9 +83,10 @@ class UnitCreate(BaseModel):
 class UnitUpdate(UnitBase):
     id: Optional[int] = None
     name: Optional[str] = None
-
+    mac: Optional[str] = None
+    
 class UnitRead(UnitBase):
-    pass
+    mac: str
 
 class Unit(UnitBase):
     id: int
@@ -100,7 +101,7 @@ class ClusterBase(BaseModel):
 
 class ClusterCreate(BaseModel):
     name: str
-    units: Optional[list[UnitCreate]] = None
+    units:list[UnitCreate]
 
 class ClusterUpdate(ClusterBase):
     name: Optional[str] = None
