@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+import psycopg2
 import regex as re
 import json
 import asyncio
@@ -20,20 +21,6 @@ from config import MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID
 class COMMAND(Enum):
     TOGGLE = "TOGGLE"
     SCHEDULE = "SCHEDULE"
-
-@dataclass
-class Status:
-    unit_id: int
-    time: datetime
-    power: float
-    current: float
-    voltage: float
-    toggle: bool
-    gps_log: str
-    gps_lat: str
-    power_factor: float
-    frequency: float
-    total_energy: float
 
 # Ensure the /log directory exists
 # Get the current directory
@@ -71,13 +58,12 @@ class Client(mqtt_client.Client):
 
     def handle_status(self, unit_id, payload):
         body = json.loads(payload)
-        print(body)
         # Store the status in the database
         session = SessionLocal()
         try:
             new_status = Model_Status(
                 unit_id=unit_id,
-                time=datetime.now(),
+                time=datetime.fromtimestamp(body['time']),
                 power=body['power'],
                 current=body['current'],
                 voltage=body['voltage'],
@@ -91,9 +77,11 @@ class Client(mqtt_client.Client):
             # Store the status in Redis
             body = json.dumps(body)
             redis_client.set(unit_id, body)
-            print("Status stored successfully.")
             asyncio.run(manager.send_private_message(body, unit_id))
-            print("Broadcasted")
+        # Duplicate timestamp
+        except psycopg2.errors.UniqueViolation:
+            print("Duplicate timestamp")
+            session.rollback()
         except Exception as e:
             print(f"Error storing status: {e}")
             session.rollback()
@@ -105,7 +93,7 @@ class Client(mqtt_client.Client):
             print("Invalid connection status")
             return
         status = {
-            "status": payload,
+            "alive": payload,
             "time": datetime.now().isoformat()
         }
         redis_client.set(unit_id, json.dumps(status))
@@ -119,6 +107,7 @@ class Client(mqtt_client.Client):
         logging.info(f"MQTT client connected with result code {reason_code}")
         # Subscribe to device status topics
         self.subscribe("unit/+/status")
+        self.subscribe("unit/+/alive")
 
     def on_disconnect(self, client, userdata, flags, reason_code, properties=None):
         print(f"Disconnected with result code {reason_code}")

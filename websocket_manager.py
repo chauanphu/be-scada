@@ -26,6 +26,7 @@ class WebSocketManager:
             del self.active_connections[str(unit_id)]
 
     async def send_private_message(self, message: str, unit_id: str):
+        unit_id = str(unit_id)
         # Send the message only to connections for the specified unit_id
         if unit_id in self.active_connections:
             for connection in self.active_connections[unit_id]:
