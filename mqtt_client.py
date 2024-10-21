@@ -52,6 +52,29 @@ class Client(mqtt_client.Client):
             "alive": self.handle_connection,
         }
 
+    def command(self, unit_id, command: COMMAND, payload):
+        # Get mac address from database
+        with SessionLocal() as session:
+            unit = session.query(Unit).filter(Unit.id == unit_id).first()
+            if not unit:
+                print("Unit not found")
+                return
+            mac_address = unit.mac
+        body = {
+            "command": command.value,
+        }
+        if command in [COMMAND.TOGGLE, COMMAND.SCHEDULE]:
+            body["payload"] = payload
+        else:
+            print("Invalid command")
+            return
+        # Stringify the body
+        body = json.dumps(body)
+        print(f"Command: {command}, Payload: {body}")
+        topic = f"unit/{mac_address}/command"
+        # Convert the body to JSON String
+        self.publish(topic, body)
+
     def connect(self, keepalive=60):
         print("Connecting...")
         super().connect(self.HOST, self.PORT, keepalive)

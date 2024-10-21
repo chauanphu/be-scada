@@ -1,7 +1,7 @@
 # schemas.py
 
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Literal, Optional
 from datetime import datetime, time
 from models.Audit import ActionEnum
 
@@ -129,12 +129,14 @@ class Cluster(ClusterBase):
         orm_mode: True
 
 class Schedule(BaseModel):
-    turn_on_time: time
-    turn_off_time: time
+    hourOn: int
+    minuteOn: int
+    hourOff: int
+    minuteOff: int
     
 class NodeControl(BaseModel):
-    toggle: Optional[bool] = None
-    schedule: Optional[Schedule] = None
+    type: Literal["toggle", "schedule"]
+    payload: bool | Schedule
 
 class AuditLogResponse(BaseModel):
     timestamp: datetime

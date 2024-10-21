@@ -120,6 +120,13 @@ def delete_cluster(cluster_id: int, db: Session = Depends(get_db), current_user:
     save_audit_log(db, current_user.email, ActionEnum.DELETE, f"Xóa cluster {cluster.name}")
     return HTTPException(status_code=200, detail="Cluster deleted successfully")
 
+def handle_toggle(db, unit_id, toggle):
+    db.query(Unit).filter(Unit.id == unit_id).update({"toggle": toggle})
+    db.commit()
+    # Implement the logic to control the unit
+    # client.command(unit_id, COMMAND.TOGGLE, toggle)
+    return HTTPException(status_code=200, detail="Controlled the unit successfully")
+
 # Control a unit
 @router.patch(
         "/units/{unit_id}", 
@@ -135,29 +142,33 @@ def control_unit(
     unit = db.query(Unit).filter(Unit.id == unit_id).first()
     if not unit:
         return HTTPException(status_code=404, detail="Unit not found")
-    if node.toggle is None and node.schedule is None:
-        return HTTPException(status_code=400, detail="toggle or schedule is required")
     
     # Implement the logic to control the unit
     details = ""
-    if node.toggle:
-        command = COMMAND.TOGGLE
+    if node.type == "toggle":
         # client.command(unit.id, command)
-        details += f"{'Bật' if node.toggle else 'Tắt'} {unit.name};"
+        details += f"{'Bật' if node.payload else 'Tắt'} {unit.name};"
         # Save to the database
-        db.query(Unit).filter(Unit.id == unit_id).update({"toggle": node.toggle})
-    if node.schedule:
-        schedule_dict = node.schedule.model_dump()
-        # Raise error if turn_on_time is greater than or equal turn_off_time
-        if schedule_dict['turn_on_time'] == schedule_dict['turn_off_time']:
-            raise HTTPException(status_code=400, detail="turn_on_time should be less than turn_off_time")
-        schedule_dict['turn_on_time'] = schedule_dict['turn_on_time'].strftime("%H:%M")
-        schedule_dict['turn_off_time'] = schedule_dict['turn_off_time'].strftime("%H:%M")
+        db.query(Unit).filter(Unit.id == unit_id).update({"toggle": node.payload})
+        payload = "on" if node.payload else "off"
+        client.command(unit.id, COMMAND.TOGGLE, payload)
 
-        details += f"Hẹn giờ {unit.name} mở từ {schedule_dict['turn_on_time']} đến {schedule_dict['turn_off_time']}"
-        db.query(Unit).filter(Unit.id == unit_id).update({"on_time": schedule_dict['turn_on_time'], "off_time": schedule_dict['turn_off_time']})
+    if node.type == "schedule":
+        schedule_dict = node.payload.model_dump()
+        turn_on_time = f"{schedule_dict['hourOn']}:{schedule_dict['minuteOn']}"
+        turn_off_time = f"{schedule_dict['hourOff']}:{schedule_dict['minuteOff']}"
+        if turn_on_time > turn_off_time:
+            return HTTPException(status_code=400, detail="Thời gian bật phải nhỏ hơn thời gian tắt")
+        details += f"Hẹn giờ {unit.name} mở từ {turn_on_time} đến {turn_off_time}"
+        db.query(Unit).filter(Unit.id == unit_id).update({"on_time": turn_on_time, "off_time": turn_off_time})
         # Implement the logic to schedule the unit
-        # client.command(unit.id, COMMAND.SCHEDULE, **schedule_dict)
+        payload = {
+            "hour_on": node.payload.hourOn,
+            "minute_on": node.payload.minuteOn,
+            "hour_off": node.payload.hourOff,
+            "minute_off": node.payload.minuteOff
+        }
+        client.command(unit.id, COMMAND.SCHEDULE, payload)
     # Audit the action
     save_audit_log(db, current_user.email, ActionEnum.UPDATE, details)
     return HTTPException(status_code=200, detail="Controlled the unit successfully")
