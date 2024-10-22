@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import create_app
 import uvicorn
-from websocket_manager import websocket_endpoint
+from websocket_manager import websocket_endpoint, notification
 
 app = create_app()
 
@@ -11,6 +11,11 @@ app = create_app()
 @app.websocket("/ws/unit/{unit_id}/status")
 async def websocket_route(websocket: WebSocket, unit_id: int):
     await websocket_endpoint(websocket, unit_id)
+
+# Websocket route for notifications
+@app.websocket("/ws/notifications")
+async def websocket_route(websocket: WebSocket):
+    await notification(websocket)
 
 origins = [
     "http://localhost",

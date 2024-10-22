@@ -1,3 +1,4 @@
+import enum
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import Dict, List
 from redis_client import client as redis_client
@@ -32,8 +33,68 @@ class WebSocketManager:
             for connection in self.active_connections[unit_id]:
                 await connection.send_text(message)
 
+class NOTI_TYPE (enum.Enum):
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    SUCCESS = "SUCCESS"
+    CRITICAL = "CRITICAL"
+
+class Notification:
+    def __init__(self, message: str, type: NOTI_TYPE):
+        self.message = message
+        self.type = type
+
+    def to_json(self):
+        return {
+            "message": self.message,
+            "type": self.type.value
+        }
+
+class NotificationManager:
+    def __init__(self):
+        self.notifications: list[Notification] = []
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        # Add the websocket to the set of active connections
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        if self.get_notifications():
+            await websocket.send_json(self.get_notifications())
+
+    async def disconnect(self, websocket: WebSocket):
+        # Remove the websocket from the set of active connections
+        self.active_connections.remove(websocket)
+
+    def add_notification(self, notification: Notification):
+        self.notifications.append(notification)
+
+    def remove_notification(self, notification: Notification):
+        self.notifications.remove(notification)
+
+    def get_notifications(self):
+        return [notification.to_json() for notification in self.notifications]
+
+    def clear_notifications(self):
+        self.notifications = []
+
+    async def broadcast_all(self):
+        notifications = self.get_notifications()
+        for connection in self.active_connections:
+            await connection.send_json(notifications)
+
+    async def broadcast(self, notification: Notification):
+        for connection in self.active_connections:
+            await connection.send_json([notification.to_json()])
+
+    async def send_notification(self, notification: Notification):
+        self.add_notification(notification)
+        await self.broadcast(notification)
+        
 # Initialize the WebSocket manager
 manager = WebSocketManager()
+notification_manager = NotificationManager()
 
 async def websocket_endpoint(websocket: WebSocket, unit_id: str):
     await manager.connect(websocket, unit_id)
@@ -42,3 +103,11 @@ async def websocket_endpoint(websocket: WebSocket, unit_id: str):
             await websocket.receive_text()  # Keeps the connection alive
     except WebSocketDisconnect:
         manager.disconnect(websocket, unit_id)
+
+async def notification(websocket: WebSocket):
+    await notification_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        notification_manager.disconnect(websocket)

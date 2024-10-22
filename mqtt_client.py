@@ -14,7 +14,7 @@ from redis_client import client as redis_client
 from models.Status import Status as Model_Status
 from models.unit import Unit
 from paho.mqtt import client as mqtt_client
-from websocket_manager import manager
+from websocket_manager import manager, notification_manager, NOTI_TYPE, Notification
 from config import MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID
 
 
@@ -84,6 +84,12 @@ class Client(mqtt_client.Client):
         # Store the status in the database
         session = SessionLocal()
         try:
+            # Check if the timestamp already exists
+            time = datetime.fromtimestamp(body['time'])
+            status = session.query(Model_Status).filter(Model_Status.unit_id == unit_id, Model_Status.time == time).first()
+            if status:
+                print("Status already exists")
+                return
             new_status = Model_Status(
                 unit_id=unit_id,
                 time=datetime.fromtimestamp(body['time']),
@@ -112,18 +118,32 @@ class Client(mqtt_client.Client):
             session.close()
 
     def handle_connection(self, unit_id, payload):
-        if payload != "1" and payload != "0":
+        unit_name = payload["name"]
+        body = payload["body"]
+
+        if body != "1" and body != "0":
             print("Invalid connection status")
             return
         status = {
-            "alive": payload,
+            "alive": body,
             "time": datetime.now().isoformat()
         }
         redis_client.set(unit_id, json.dumps(status))
-        print(f"Device {unit_id} is {payload}")
-        logging.info(f"Device {unit_id} is {payload}")
+        print(f"Device {unit_id} is {body}")
+        logging.info(f"Device {unit_id} is {body}")
         asyncio.run(manager.send_private_message(json.dumps(status), unit_id))
-
+        if body == "0":
+            notification = Notification(
+                type=NOTI_TYPE.CRITICAL,
+                message=f"Device {unit_name} disconnected"
+            )
+            asyncio.run(notification_manager.send_notification(notification))
+        # else:
+        #     notification = Notification(
+        #         type=NOTI_TYPE.INFO,
+        #         message=f"Device {unit_name} connected"
+        #     )
+        #     asyncio.run(notification_manager.send_notification(notification))
     ## Override
     def on_connect(self, client, userdata, flags, reason_code, properties=None):
         print(f"Connected with result code {reason_code}")
@@ -151,9 +171,15 @@ class Client(mqtt_client.Client):
                         print("Unit not found")
                         return
                     unit_id = unit.id
-                    if _type in self.incoming:
-                        payload = message.payload.decode('utf-8')                        
-                        self.incoming[_type](unit_id, payload)
+                    body = message.payload.decode("utf-8")
+                    if _type == "status":
+                        self.incoming["status"](unit_id, body)
+                    elif _type == "alive":
+                        payload = {
+                            "name": unit.name,
+                            "body": body
+                        }
+                        self.incoming["alive"](unit_id, payload)
                     else:
                         print("Invalid message type", _type)
                 except Exception as e:
