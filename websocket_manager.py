@@ -1,7 +1,11 @@
+from datetime import datetime
 import enum
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import Dict, List
+from auth import ws_get_current_user
+from models.Account import Account
 from redis_client import client as redis_client
+from database import SessionLocal
 
 class WebSocketManager:
     def __init__(self):
@@ -18,7 +22,12 @@ class WebSocketManager:
         previous_status = redis_client.get(unit_id)
         if previous_status:
             await websocket.send_text(previous_status.decode('utf-8'))
-
+        else:
+            # Send the disconnected status to the client with time as current time
+            await websocket.send_json(
+                {"alive": 0, "time": datetime.now().isoformat()}
+            )
+        
     def disconnect(self, websocket: WebSocket, unit_id: str):
         # Remove the websocket from the list of connections for this unit_id
         self.active_connections[str(unit_id)].remove(websocket)
@@ -56,8 +65,10 @@ class NotificationManager:
         self.notifications: list[Notification] = []
         self.active_connections: list[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, current_user: Account):
         # Add the websocket to the set of active connections
+        if current_user is None:
+            return
         await websocket.accept()
         self.active_connections.append(websocket)
         if self.get_notifications():
@@ -104,10 +115,13 @@ async def websocket_endpoint(websocket: WebSocket, unit_id: str):
     except WebSocketDisconnect:
         manager.disconnect(websocket, unit_id)
 
-async def notification(websocket: WebSocket):
-    await notification_manager.connect(websocket)
+async def notification(websocket: WebSocket, token: str):
+    # Get the db session
     try:
+        with SessionLocal() as db:
+            current_user = ws_get_current_user(token, db)
+            await notification_manager.connect(websocket, current_user)
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        notification_manager.disconnect(websocket)
+        await notification_manager.disconnect(websocket)

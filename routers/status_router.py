@@ -48,9 +48,9 @@ def get_grouped_data(view: ViewEnum, db):
     ).group_by(
         time_format
     ).order_by(
-        time_format.asc()  # Ensure ordering by time in ascending order
+        time_format.desc()  # Ensure ordering by time in ascending order
     ).all()
-
+    
     return result
 
 # Return enerygy consumption, query: view=hourly|daily|monthly

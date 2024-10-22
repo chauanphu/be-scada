@@ -1,4 +1,4 @@
-from fastapi import WebSocket
+from fastapi import Depends, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import create_app
@@ -15,8 +15,15 @@ async def websocket_route(websocket: WebSocket, unit_id: int):
 # Websocket route for notifications
 @app.websocket("/ws/notifications")
 async def websocket_route(websocket: WebSocket):
-    await notification(websocket)
-
+    try:
+        token = websocket.query_params.get('token')
+        if not token:
+            await websocket.close(code=1008, reason="Token is required")
+            return
+        await notification(websocket, token)
+    except Exception as e:
+        await websocket.close(code=1008, reason=str(e))
+    
 origins = [
     "http://localhost",
     "http://localhost:8000",
