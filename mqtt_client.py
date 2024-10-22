@@ -51,6 +51,7 @@ class Client(mqtt_client.Client):
             "status": self.handle_status,
             "alive": self.handle_connection,
         }
+        self.ttl = 60 * 5 # 5 minutes
 
     def command(self, unit_id, command: COMMAND, payload):
         # Get mac address from database
@@ -105,7 +106,7 @@ class Client(mqtt_client.Client):
             session.commit()
             # Store the status in Redis
             body = json.dumps(body)
-            redis_client.set(unit_id, body)
+            redis_client.setex(unit_id, self.ttl, body)
             asyncio.run(manager.send_private_message(body, unit_id))
         # Duplicate timestamp
         except psycopg2.errors.UniqueViolation:
@@ -128,14 +129,14 @@ class Client(mqtt_client.Client):
             "alive": body,
             "time": datetime.now().isoformat()
         }
-        redis_client.set(unit_id, json.dumps(status))
+        redis_client.setex(unit_id, self.ttl, json.dumps(status))
         print(f"Device {unit_id} is {body}")
         logging.info(f"Device {unit_id} is {body}")
         asyncio.run(manager.send_private_message(json.dumps(status), unit_id))
         if body == "0":
             notification = Notification(
                 type=NOTI_TYPE.CRITICAL,
-                message=f"Device {unit_name} disconnected"
+                message=f"Thiết bị {unit_name} đã mất kết nối"
             )
             asyncio.run(notification_manager.send_notification(notification))
         # else:
