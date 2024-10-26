@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from models.Account import Account, Role
 from models.Audit import ActionEnum
 from routers.dependencies import required_permission
-from schemas import RoleCheck, RoleCreate, RoleRead, RoleReadFull
+from schemas import RoleReadFull
 
 from config import ACCESS_TOKEN_EXPIRE_MINUTES, PermissionEnum
 from utils import save_audit_log

@@ -9,3 +9,12 @@ docker-compose.yml
 Dockerfile
 log/
 .vscode/
+firmware_files/*
+
+.git
+__pycache__
+*.pyc
+.env
+.venv
+tests
+docs

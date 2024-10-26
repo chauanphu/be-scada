@@ -3,7 +3,7 @@ version: '3.8'
 services:
   scada_be:
     build: .
-    image: scada_be
+    image: scada_be:1.1.0
     container_name: scada_be
     ports:
       - "8000:8000"
@@ -32,18 +32,6 @@ services:
     networks:
       - intra-domain
 
-  pgadmin:
-    image: dpage/pgadmin4
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-    depends_on:
-      - timescaledb
-    networks:
-      - intra-domain
-
   redis:
     image: redis:alpine
     container_name: scada_redis
@@ -52,6 +40,23 @@ services:
     networks:
       - intra-domain
 
+  # app:
+  #   image: scada_fe:latest  # Replace with your built image name
+  #   container_name: scada_fe
+  #   # build:
+  #   #   context: .  # Path to your Dockerfile
+  #   #   dockerfile: Dockerfile
+  #   env_file:
+  #     - .env.local  # Path to your .env file
+  #   ports:
+  #     - "3000:3000" # Expose port 80 on the host to port 80 in the container
+  #   restart: unless-stopped  # Restart policy
+  #   depends_on:
+  #     - scada_be
+
+  #   networks:
+  #     - intra-domain
+  
 volumes:
   timescale_data:
 
