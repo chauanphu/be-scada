@@ -160,8 +160,6 @@ def control_unit(
         schedule_dict = node.payload.model_dump()
         turn_on_time = f"{schedule_dict['hourOn']}:{schedule_dict['minuteOn']}"
         turn_off_time = f"{schedule_dict['hourOff']}:{schedule_dict['minuteOff']}"
-        if turn_on_time > turn_off_time:
-            return HTTPException(status_code=400, detail="Thời gian bật phải nhỏ hơn thời gian tắt")
         details += f"Hẹn giờ {unit.name} mở từ {turn_on_time} đến {turn_off_time}"
         db.query(Unit).filter(Unit.id == unit_id).update({"on_time": turn_on_time, "off_time": turn_off_time})
         # Implement the logic to schedule the unit
