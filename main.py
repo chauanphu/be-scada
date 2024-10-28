@@ -30,6 +30,8 @@ origins = [
     "http://localhost:3000",
     "http://localhost:5173", # VITE dev server
     # Add more origins as needed
+    # Allow all subdomain of *.chaugiaphat.com
+    "https://scada.chaugiaphat.com",
 ]
 app.add_middleware(
     CORSMiddleware,

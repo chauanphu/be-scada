@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from auth import get_current_user  # Assuming this function is already defined
 from models.Account import Account, Role
 from database.session import get_db
-from config import PermissionEnum
+from config import DEBUG, PermissionEnum
 
 def admin_required(
     current_user: Account = Depends(get_current_user),
@@ -30,6 +30,9 @@ def required_permission(user_permissions: list[PermissionEnum]):
         permission_names = set([permission.permission_name for permission in permissions])
         # If the current user has none of the required permissions
         user_p_names = set([p.value for p in user_permissions])
+        if DEBUG:
+            print("Required permissions: ", user_p_names)
+            print("User permissions: ", permission_names)
         if not user_p_names.intersection(permission_names):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

@@ -35,6 +35,9 @@ def get_clusters(
     clusters = db.query(Cluster).options(
         joinedload(Cluster.units),
     ).all()
+    if not clusters:
+        raise HTTPException(status_code=404, detail="No clusters found")
+    
     return clusters
 
 # Create a new cluster, only admin users can access this endpoint

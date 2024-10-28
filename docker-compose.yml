@@ -3,10 +3,12 @@ version: '3.8'
 services:
   scada_be:
     build: .
-    image: scada_be:1.1.0
+    image: scada_be:1.1.1
     container_name: scada_be
     ports:
       - "8000:8000"
+    environment:
+      - DEBUG=true
     env_file:
       - .env.local
     depends_on:
@@ -41,7 +43,7 @@ services:
       - intra-domain
 
   # app:
-  #   image: scada_fe:latest  # Replace with your built image name
+  #   image: scada_fe:1.1.0  # Replace with your built image name
   #   container_name: scada_fe
   #   # build:
   #   #   context: .  # Path to your Dockerfile
@@ -49,7 +51,7 @@ services:
   #   env_file:
   #     - .env.local  # Path to your .env file
   #   ports:
-  #     - "3000:3000" # Expose port 80 on the host to port 80 in the container
+  #     - "80:80" # Expose port 80 on the host to port 80 in the container
   #   restart: unless-stopped  # Restart policy
   #   depends_on:
   #     - scada_be
