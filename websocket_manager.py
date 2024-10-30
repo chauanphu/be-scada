@@ -19,7 +19,7 @@ class WebSocketManager:
         if unit_id not in self.active_connections:
             self.active_connections[unit_id] = []
         self.active_connections[unit_id].append(websocket)
-        previous_status = redis_client.get(unit_id)
+        previous_status = redis_client.get(f"device:{unit_id}")
         if previous_status:
             await websocket.send_text(previous_status.decode('utf-8'))
         else:

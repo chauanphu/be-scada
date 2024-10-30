@@ -146,20 +146,21 @@ class Client(mqtt_client.Client):
             "alive": body,
             "time": datetime.now().isoformat()
         }
-        redis_client.setex(f"device:{unit_id}", self.ttl, json.dumps(status))
+        # Only set the status in Redis if the device is disconnected
         print(f"Device {unit_id} is {body}")
-        logging.info(f"Device {unit_id} is {body}")
-        asyncio.run(manager.send_private_message(json.dumps(status), unit_id))
         if body == "0":
+            redis_client.setex(f"device:{unit_id}", self.ttl, json.dumps(status))
             notification = Notification(
                 type=NOTI_TYPE.CRITICAL,
                 message=f"Thiết bị {unit_name} đã mất kết nối"
             )
+            asyncio.run(manager.send_private_message(json.dumps(status), unit_id))
             asyncio.run(notification_manager.send_notification(notification))
+
         else:
             notification = Notification(
                 type=NOTI_TYPE.INFO,
-                message=f"Device {unit_name} connected"
+                message=f"Thiết bị {unit_name} đã kết nối"
             )
             asyncio.run(notification_manager.send_notification(notification))
 
