@@ -33,6 +33,7 @@ origins = [
     # Allow all subdomain of *.chaugiaphat.com
     "https://scada.chaugiaphat.com",
 ]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,  # Allows all origins
