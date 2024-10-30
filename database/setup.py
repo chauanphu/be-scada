@@ -102,7 +102,7 @@ def create_default_admin():
 side_roles = {
     "Quản lý thiết bị": [PermissionEnum.CONFIG_DEVICE, PermissionEnum.CONTROL_DEVICE],
     "Quản lý người dùng": [PermissionEnum.MANAGE_USER],
-    "Quan sát": [PermissionEnum.MONITOR_SYSTEM, PermissionEnum.REPORT, PermissionEnum.VIEW_CHANGE_LOG]
+    "Quan sát viên": [PermissionEnum.MONITOR_SYSTEM, PermissionEnum.REPORT, PermissionEnum.VIEW_CHANGE_LOG]
 }
 
 def create_side_roles():
