@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from mqtt_client import client
 from routers import api_router
-from database.setup import create_default_roles, create_default_admin, create_default_permissions
+from database.setup import create_default_roles, create_default_admin, create_default_permissions, create_side_roles
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -14,6 +14,8 @@ def create_app() -> FastAPI:
     create_default_permissions()
     create_default_roles()
     create_default_admin()
+    create_side_roles()
+    
     client.connect()
     client.loop_start()
     app.include_router(api_router)

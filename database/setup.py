@@ -99,3 +99,31 @@ def create_default_admin():
         print(f"Error creating admin or superadmin user: {e}")
     finally:
         session.close()
+side_roles = {
+    "Quản lý thiết bị": [PermissionEnum.CONFIG_DEVICE, PermissionEnum.CONTROL_DEVICE],
+    "Quản lý người dùng": [PermissionEnum.MANAGE_USER],
+    "Quan sát": [PermissionEnum.MONITOR_SYSTEM, PermissionEnum.REPORT, PermissionEnum.VIEW_CHANGE_LOG]
+}
+
+def create_side_roles():
+    session = SessionLocal()
+    try:
+        for role_name, permissions in side_roles.items():
+            existing_role = session.query(Role).filter(Role.role_name == role_name).first()
+            if not existing_role:
+                new_role = Role(role_name=role_name)
+                session.add(new_role)
+                session.commit()
+                # Assign permissions to the role
+                for permission in permissions:
+                    permission_name = permission.value
+                    existing_permission = session.query(Permission).filter(Permission.permission_name == permission_name).first()
+                    if existing_permission:
+                        new_role.permissions.append(existing_permission)
+                    print(f"Added permission {permission_name} to role {role_name}")
+                session.commit()
+    except Exception as e:
+        session.rollback()
+        print(f"Error creating side roles: {e}")
+    finally:
+        session.close()
