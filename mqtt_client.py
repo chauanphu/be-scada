@@ -104,9 +104,26 @@ class Client(mqtt_client.Client):
             )
             session.add(new_status)
             session.commit()
+            # Check if hour_on, hour_off, minute_on, minute_off is different from the previous status in Redis
+            prev_status = redis_client.get(f"device:{unit_id}")
+            if prev_status:
+                prev_status = json.loads(prev_status)
+                hour_on = prev_status.get("hour_on")
+                hour_off = prev_status.get("hour_off")
+                minute_on = prev_status.get("minute_on")
+                minute_off = prev_status.get("minute_off")
+
+                if hour_on != body.get("hour_on") or minute_on != body.get("hour_off"):
+                    new_on_time = f"{body['hour_on']}:{body['minute_on']}"
+                    session.query(Unit).filter(Unit.id == unit_id).update({"on_time": new_on_time})
+                if hour_off != body.get("hour_off") or minute_off != body.get("minute_off"):
+                    new_off_time = f"{body['hour_off']}:{body['minute_off']}"
+                    session.query(Unit).filter(Unit.id == unit_id).update({"off_time": new_off_time})
+                session.commit()
+
             # Store the status in Redis
             body = json.dumps(body)
-            redis_client.setex(unit_id, self.ttl, body)
+            redis_client.setex(f"device:{unit_id}", self.ttl, body)
             asyncio.run(manager.send_private_message(body, unit_id))
         # Duplicate timestamp
         except psycopg2.errors.UniqueViolation:
@@ -129,7 +146,7 @@ class Client(mqtt_client.Client):
             "alive": body,
             "time": datetime.now().isoformat()
         }
-        redis_client.setex(unit_id, self.ttl, json.dumps(status))
+        redis_client.setex(f"device:{unit_id}", self.ttl, json.dumps(status))
         print(f"Device {unit_id} is {body}")
         logging.info(f"Device {unit_id} is {body}")
         asyncio.run(manager.send_private_message(json.dumps(status), unit_id))
@@ -139,12 +156,30 @@ class Client(mqtt_client.Client):
                 message=f"Thiết bị {unit_name} đã mất kết nối"
             )
             asyncio.run(notification_manager.send_notification(notification))
-        # else:
-        #     notification = Notification(
-        #         type=NOTI_TYPE.INFO,
-        #         message=f"Device {unit_name} connected"
-        #     )
-        #     asyncio.run(notification_manager.send_notification(notification))
+        else:
+            notification = Notification(
+                type=NOTI_TYPE.INFO,
+                message=f"Device {unit_name} connected"
+            )
+            asyncio.run(notification_manager.send_notification(notification))
+
+            # Sync the schedule to the device
+            with SessionLocal() as session:
+                unit = session.query(Unit).filter(Unit.id == unit_id).first()
+                if not unit:
+                    print("Unit not found")
+                    return
+                # Convert from datetime.time to string
+                on_time = unit.on_time.strftime("%H:%M")
+                off_time = unit.off_time.strftime("%H:%M")
+                schedule = {
+                    "hour_on": on_time.split(":")[0],
+                    "minute_on": on_time.split(":")[1],
+                    "hour_off": off_time.split(":")[0],
+                    "minute_off": off_time.split(":")[1]
+                }
+                self.command(unit_id, COMMAND.SCHEDULE, schedule)
+
     ## Override
     def on_connect(self, client, userdata, flags, reason_code, properties=None):
         print(f"Connected with result code {reason_code}")
@@ -169,7 +204,7 @@ class Client(mqtt_client.Client):
                 try:
                     unit = session.query(Unit).filter(Unit.mac == mac_address).first()
                     if not unit:
-                        print("Unit not found")
+                        print("Unit not found: ", mac_address)
                         return
                     unit_id = unit.id
                     body = message.payload.decode("utf-8")
