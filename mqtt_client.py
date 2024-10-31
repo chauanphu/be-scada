@@ -21,6 +21,7 @@ from config import MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID
 class COMMAND(Enum):
     TOGGLE = "TOGGLE"
     SCHEDULE = "SCHEDULE"
+    AUTO = "AUTO"
 
 # Ensure the /log directory exists
 # Get the current directory
@@ -64,7 +65,7 @@ class Client(mqtt_client.Client):
         body = {
             "command": command.value,
         }
-        if command in [COMMAND.TOGGLE, COMMAND.SCHEDULE]:
+        if command in COMMAND:
             body["payload"] = payload
         else:
             print("Invalid command")

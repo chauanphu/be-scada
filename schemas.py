@@ -135,7 +135,7 @@ class Schedule(BaseModel):
     minuteOff: int
     
 class NodeControl(BaseModel):
-    type: Literal["toggle", "schedule"]
+    type: Literal["toggle", "schedule", "auto"]
     payload: bool | Schedule
 
 class AuditLogResponse(BaseModel):

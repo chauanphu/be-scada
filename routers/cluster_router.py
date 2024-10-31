@@ -123,13 +123,6 @@ def delete_cluster(cluster_id: int, db: Session = Depends(get_db), current_user:
     save_audit_log(db, current_user.email, ActionEnum.DELETE, f"Xóa cluster {cluster.name}")
     return HTTPException(status_code=200, detail="Cluster deleted successfully")
 
-def handle_toggle(db, unit_id, toggle):
-    db.query(Unit).filter(Unit.id == unit_id).update({"toggle": toggle})
-    db.commit()
-    # Implement the logic to control the unit
-    # client.command(unit_id, COMMAND.TOGGLE, toggle)
-    return HTTPException(status_code=200, detail="Controlled the unit successfully")
-
 # Control a unit
 @router.patch(
         "/units/{unit_id}", 
@@ -152,9 +145,13 @@ def control_unit(
         # client.command(unit.id, command)
         details += f"{'Bật' if node.payload else 'Tắt'} {unit.name};"
         # Save to the database
-        db.query(Unit).filter(Unit.id == unit_id).update({"toggle": node.payload})
         payload = "on" if node.payload else "off"
         client.command(unit.id, COMMAND.TOGGLE, payload)
+    elif node.type == "auto":
+        details += f"Chuyển {unit.name} sang chế độ tự động"
+        # Implement the logic to control the unit
+        payload = "on" if node.payload else "off"
+        client.command(unit.id, COMMAND.AUTO, payload)
 
     if node.type == "schedule":
         schedule_dict = node.payload.model_dump()
