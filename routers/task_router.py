@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from database import session
 from database.session import get_db
 from models.Account import Account, Permission, Role
-from models.Task import Task
+from models.Task import Task, TaskStatus, TaskType
 
 router = APIRouter(
     prefix='/tasks',
@@ -12,6 +12,7 @@ router = APIRouter(
 )
 
 class TaskRead(BaseModel):
+    id: datetime
     time: datetime
     device: str
     type: str
@@ -32,21 +33,25 @@ class Assignee(BaseModel):
 async def get_tasks(
     page: int = 1,
     page_size: int = 10,
-    typeFilter: str = None,
-    statusFilter: str = None,
+    type: str = None,
+    status: str = None,
     db: session = Depends(get_db)
 ):
     query = db.query(Task)
-
-    if typeFilter:
-        query = query.filter(Task.type == typeFilter)
-    if statusFilter:
-        query = query.filter(Task.status == statusFilter)
+    print(type, status)
+    if type:
+        # type is TaskType enum value, so we need to convert it to TaskType enum
+        task_enum = [task for task in TaskType if task.value == type][0]
+        query = query.filter(Task.type == task_enum)
+    if status:
+        status_enum = [statut for statut in TaskStatus if statut.value == status][0]
+        query = query.filter(Task.status == status_enum)
 
     total = query.count()
     tasks: list[Task] = query.order_by(Task.time.desc()).offset((page - 1) * page_size).limit(page_size).all()
     tasks = [
         TaskRead(
+            id=task.time,
             time=task.time, 
             device=task.device.name, 
             type=task.type, 
