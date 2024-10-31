@@ -26,8 +26,8 @@ def required_permission(user_permissions: list[PermissionEnum]):
         db: Session = Depends(get_db)
     ):
         # Get all permission names of the current user
-        permissions = db.query(Role).filter(Role.role_id == current_user.role).first().permissions
-        permission_names = set([permission.permission_name for permission in permissions])
+        user_per = db.query(Role).filter(Role.role_id == current_user.role).first().permissions
+        permission_names = set([permission.permission_name for permission in user_per])
         # If the current user has none of the required permissions
         user_p_names = set([p.value for p in user_permissions])
         if not user_p_names.intersection(permission_names):

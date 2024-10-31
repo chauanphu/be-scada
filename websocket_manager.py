@@ -3,6 +3,7 @@ import enum
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import Dict, List
 from auth import ws_get_current_user
+from config import PermissionEnum
 from models.Account import Account
 from redis_client import client as redis_client
 from database import SessionLocal
@@ -119,7 +120,11 @@ async def notification(websocket: WebSocket, token: str):
     # Get the db session
     try:
         with SessionLocal() as db:
-            current_user = ws_get_current_user(token, db)
+            current_user = ws_get_current_user(
+                token, 
+                db, 
+                required_permission=[PermissionEnum.CONTROL_DEVICE, PermissionEnum.MONITOR_SYSTEM]
+            )
             await notification_manager.connect(websocket, current_user)
         while True:
             await websocket.receive_text()

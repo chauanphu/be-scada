@@ -15,7 +15,7 @@ from models.Status import Status as Model_Status
 from models.unit import Unit
 from paho.mqtt import client as mqtt_client
 from websocket_manager import manager, notification_manager, NOTI_TYPE, Notification
-from config import MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID
+from config import MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID, PermissionEnum
 
 
 class COMMAND(Enum):
@@ -166,21 +166,26 @@ class Client(mqtt_client.Client):
             asyncio.run(notification_manager.send_notification(notification))
 
             # Sync the schedule to the device
-            with SessionLocal() as session:
-                unit = session.query(Unit).filter(Unit.id == unit_id).first()
-                if not unit:
-                    print("Unit not found")
-                    return
-                # Convert from datetime.time to string
-                on_time = unit.on_time.strftime("%H:%M")
-                off_time = unit.off_time.strftime("%H:%M")
-                schedule = {
-                    "hour_on": on_time.split(":")[0],
-                    "minute_on": on_time.split(":")[1],
-                    "hour_off": off_time.split(":")[0],
-                    "minute_off": off_time.split(":")[1]
-                }
-                self.command(unit_id, COMMAND.SCHEDULE, schedule)
+            try:
+                with SessionLocal() as session:
+                    unit = session.query(Unit).filter(Unit.id == unit_id).first()
+                    if not unit:
+                        print("Unit not found")
+                        return
+                    # Convert from datetime.time to string
+                    on_time = unit.on_time.strftime("%H:%M")
+                    off_time = unit.off_time.strftime("%H:%M")
+                    schedule = {
+                        "hour_on": on_time.split(":")[0],
+                        "minute_on": on_time.split(":")[1],
+                        "hour_off": off_time.split(":")[0],
+                        "minute_off": off_time.split(":")[1]
+                    }
+                    self.command(unit_id, COMMAND.SCHEDULE, schedule)
+            except Exception as e:
+                print(f"An error occurred: {e}")
+            finally:
+                session.close()
 
     ## Override
     def on_connect(self, client, userdata, flags, reason_code, properties=None):
