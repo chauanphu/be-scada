@@ -28,5 +28,6 @@ class Unit(Base):
 
     cluster = relationship('Cluster', back_populates='units')
     statuses = relationship('Status', back_populates='unit')
+    tasks = relationship('Task', back_populates='device')
 
 print("Unit, Cluster model created successfully.")

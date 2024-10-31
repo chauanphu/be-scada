@@ -3,6 +3,7 @@ from .__init__ import Base, engine
 # from models.user import User
 from models.Account import Account, Role, Permission
 from models.Status import *
+from models.Task import *
 from models.unit import *
 from models.Audit import *
 

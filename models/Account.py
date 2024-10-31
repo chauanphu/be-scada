@@ -50,6 +50,7 @@ class Account(Base):
     created = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     role = Column(Integer, ForeignKey('role.role_id'), nullable=False, default=2)
+    tasks = relationship('Task', back_populates='assignee')
 
     role_rel = relationship("Role", backref="account")
 
