@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 import psycopg2
@@ -8,14 +7,16 @@ import asyncio
 import logging
 import os
 # Database & Caching
-from database.__init__ import SessionLocal
+from database import SessionLocal
+from models.Task import TaskType
 from redis_client import client as redis_client
 # MQTT, Websocket
 from models.Status import Status as Model_Status
 from models.unit import Unit
 from paho.mqtt import client as mqtt_client
+from utils import add_task
 from websocket_manager import manager, notification_manager, NOTI_TYPE, Notification
-from config import MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID, PermissionEnum
+from config import MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID
 
 
 class COMMAND(Enum):
@@ -136,7 +137,7 @@ class Client(mqtt_client.Client):
         finally:
             session.close()
 
-    def handle_connection(self, unit_id, payload):
+    def handle_connection(self, unit_id: int, payload):
         unit_name = payload["name"]
         body = payload["body"]
 
@@ -155,9 +156,9 @@ class Client(mqtt_client.Client):
                 type=NOTI_TYPE.CRITICAL,
                 message=f"Thiết bị {unit_name} đã mất kết nối"
             )
+            add_task(unit_id, TaskType.DISCONNECTION)
             asyncio.run(manager.send_private_message(json.dumps(status), unit_id))
-            asyncio.run(notification_manager.send_notification(notification))
-
+            # asyncio.run(notification_manager.send_notification(notification))
         else:
             notification = Notification(
                 type=NOTI_TYPE.INFO,

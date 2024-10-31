@@ -3,6 +3,7 @@
 from passlib.context import CryptContext
 from models.Account import Account
 from models.Audit import Audit
+from models.Task import TaskType
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -20,3 +21,31 @@ def save_audit_log(db, email: str, action: str, details: str):
     db.add(audit)
     db.commit()
     return audit
+
+def add_task(device_id: int, type: TaskType):
+    from models.Task import Task, TaskStatus
+    from database.__init__ import SessionLocal
+
+    session = SessionLocal()
+    try:
+        # Check if there is an unresolved task for the device with the same type
+        existing_task = session.query(Task).filter(
+            Task.device_id == device_id, 
+            Task.type == type,
+            Task.status in [TaskStatus.IN_PROGRESS, TaskStatus.PENDING]).first()
+        
+        if existing_task:
+            print("Task already exists")
+            session.close()
+            return
+        task = Task(
+            device_id=device_id,
+            type=type
+        )
+        session.add(task)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        print(f"Error adding task: {e}")
+    finally:
+        session.close()
