@@ -5,14 +5,13 @@ from database.__init__ import Base
 import enum
 
 class TaskType(enum.Enum):
-    DISCONNECTION = "disconnection"
-    POWERLOST = "powerlost"
-    REPAIR = "repair"
+    DISCONNECTION = "Mất kết nối"
+    POWERLOST = "Mất điện"
 
 class TaskStatus(enum.Enum):
-    PENDING = "PENDING"
-    IN_PROGRESS = "PROGRESS"
-    COMPLETED = "COMPLETED"
+    PENDING = "Chưa xử lý"
+    IN_PROGRESS = "Đang xử lý"
+    COMPLETED = "Đã xử lý"
 
 class Task(Base):
     __tablename__ = 'tasks'

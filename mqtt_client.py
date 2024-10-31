@@ -16,7 +16,7 @@ from models.unit import Unit
 from paho.mqtt import client as mqtt_client
 from utils import add_task
 from websocket_manager import manager, notification_manager, NOTI_TYPE, Notification
-from config import MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID
+from config import MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID, POWERLOST_THRESHOLD
 
 
 class COMMAND(Enum):
@@ -90,6 +90,7 @@ class Client(mqtt_client.Client):
             # Check if the timestamp already exists
             time = datetime.fromtimestamp(body['time'])
             status = session.query(Model_Status).filter(Model_Status.unit_id == unit_id, Model_Status.time == time).first()
+            
             if status:
                 print("Status already exists")
                 return
@@ -106,6 +107,10 @@ class Client(mqtt_client.Client):
             )
             session.add(new_status)
             session.commit()
+            # Check for powerlost and add task
+            if bool(body["toggle"]) and float(body["power"]) < POWERLOST_THRESHOLD:
+                add_task(unit_id, TaskType.POWERLOST)
+
             # Check if hour_on, hour_off, minute_on, minute_off is different from the previous status in Redis
             prev_status = redis_client.get(f"device:{unit_id}")
             if prev_status:

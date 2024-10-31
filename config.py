@@ -18,6 +18,7 @@ SUPERADMIN_EMAIL = config("SUPERADMIN_EMAIL")
 SECRET_KEY = config("SECRET_KEY")  # Replace with a secure key
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 1 day in minutes
+POWERLOST_THRESHOLD = 50 # 50W
 DEBUG = config("DEBUG", default=False, cast=bool)
 
 class PermissionEnum(Enum):

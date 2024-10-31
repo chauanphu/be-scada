@@ -32,7 +32,7 @@ def add_task(device_id: int, type: TaskType):
         existing_task = session.query(Task).filter(
             Task.device_id == device_id, 
             Task.type == type,
-            Task.status in [TaskStatus.IN_PROGRESS, TaskStatus.PENDING]).first()
+            Task.status != TaskStatus.COMPLETED).first()
         
         if existing_task:
             print("Task already exists")
