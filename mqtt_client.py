@@ -8,7 +8,7 @@ import logging
 import os
 # Database & Caching
 from database import SessionLocal
-from models.Task import TaskType
+from models.Task import TaskType, TaskTypeEnum
 from redis_client import client as redis_client
 # MQTT, Websocket
 from models.Status import Status as Model_Status
@@ -109,7 +109,7 @@ class Client(mqtt_client.Client):
             session.commit()
             # Check for powerlost and add task
             if bool(body["toggle"]) and float(body["power"]) < POWERLOST_THRESHOLD:
-                add_task(unit_id, TaskType.POWERLOST)
+                add_task(unit_id, TaskTypeEnum.POWER_OFF)
 
             # Check if hour_on, hour_off, minute_on, minute_off is different from the previous status in Redis
             prev_status = redis_client.get(f"device:{unit_id}")
@@ -161,7 +161,7 @@ class Client(mqtt_client.Client):
                 type=NOTI_TYPE.CRITICAL,
                 message=f"Thiết bị {unit_name} đã mất kết nối"
             )
-            add_task(unit_id, TaskType.DISCONNECTION)
+            add_task(unit_id, TaskTypeEnum.DISCONNECTION)
             asyncio.run(manager.send_private_message(json.dumps(status), unit_id))
             # asyncio.run(notification_manager.send_notification(notification))
         else:

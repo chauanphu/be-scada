@@ -25,8 +25,6 @@ async def websocket_route(websocket: WebSocket):
         await websocket.close(code=1008, reason=str(e))
     
 origins = [
-    "http://localhost",
-    "http://localhost:8000",
     "http://localhost:3000",
     "http://localhost:5173", # VITE dev server
     "https://scada.chaugiaphat.com",

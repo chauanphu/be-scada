@@ -39,11 +39,9 @@ async def get_tasks(
     db: session = Depends(get_db)
 ):
     query = db.query(Task)
-    print(type, status)
     if type:
-        # type is TaskType enum value, so we need to convert it to TaskType enum
-        task_enum = [task for task in TaskType if task.value == type][0]
-        query = query.filter(Task.type == task_enum)
+        task_type = db.query(TaskType).filter(TaskType.value == type).first()
+        query = query.filter(Task.type == task_type)
     if status:
         status_enum = [statut for statut in TaskStatus if statut.value == status][0]
         query = query.filter(Task.status == status_enum)
@@ -55,7 +53,7 @@ async def get_tasks(
             id=task.time,
             time=task.time, 
             device=task.device.name, 
-            type=task.type, 
+            type=task.type.value, 
             status=task.status, 
             assigned_to=Assignee(id=task.assignee.user_id, email=task.assignee.email) if task.assignee else None
         )
