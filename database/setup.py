@@ -12,6 +12,7 @@ from config import ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_EMAIL, SUPERADMIN_USERN
 # create_roles.py
 
 from database import SessionLocal
+from database.session import session
 
 def create_default_permissions():
     session = SessionLocal()
@@ -128,3 +129,13 @@ def create_side_roles():
         print(f"Error creating side roles: {e}")
     finally:
         session.close()
+
+def populate_task_types():
+    for task_type in TaskTypeEnum:
+        existing_type = session.query(TaskType).filter(TaskType.key == task_type.name).first()
+        if not existing_type:
+            new_type = TaskType(key=task_type.name, value=task_type.value)
+            session.add(new_type)
+            session.commit()
+            print(f"Added task type {task_type.name} to the database.")
+    print("Task types populated successfully.")

@@ -35,7 +35,6 @@ def add_task(device_id: int, type: TaskType):
             Task.status != TaskStatus.COMPLETED).first()
         
         if existing_task:
-            print("Task already exists")
             session.close()
             return
         task = Task(

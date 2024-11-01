@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from database import session
@@ -11,20 +12,20 @@ router = APIRouter(
     tags=['tasks']
 )
 
+class Assignee(BaseModel):
+    id: int
+    email: str
+
+    class Config:
+        orm_mode = True
+
 class TaskRead(BaseModel):
     id: datetime
     time: datetime
     device: str
     type: str
     status: str
-    assigned_to: str
-
-    class Config:
-        orm_mode = True
-
-class Assignee(BaseModel):
-    id: int
-    email: str
+    assigned_to: Optional[Assignee]
 
     class Config:
         orm_mode = True
@@ -56,7 +57,7 @@ async def get_tasks(
             device=task.device.name, 
             type=task.type, 
             status=task.status, 
-            assigned_to=task.assignee if task.assignee else "Chưa được giao"
+            assigned_to=Assignee(id=task.assignee.user_id, email=task.assignee.email) if task.assignee else None
         )
         for task in tasks
     ]
@@ -81,3 +82,38 @@ async def get_assignees(db: session = Depends(get_db)):
     return [
         Assignee(id=account.user_id, email=account.email) for account in accounts
     ]
+
+class TaskUpdate(BaseModel):
+    status: str = None
+    assignedTo: str = None
+
+@router.patch("/{task_id}")
+async def update_task(
+    task_id: datetime,
+    task_update: TaskUpdate,
+    db: session = Depends(get_db)
+):
+    task = db.query(Task).filter(Task.time == task_id).first()
+    if not task:
+        return {"error": "Task not found"}
+    if task_update.status:
+        status_enum = [status for status in TaskStatus if status.value == task_update.status][0]
+        task.status = status_enum
+
+    if task_update.assignedTo:
+        assignee = db.query(Account).filter(Account.user_id == task_update.assignedTo).first()
+        if not assignee:
+            return {"error": "Assignee not found"}
+        task.assignee = assignee
+
+    db.commit()
+    db.refresh(task)
+
+    return TaskRead(
+        id=task.time,
+        time=task.time,
+        device=task.device.name,
+        type=task.type,
+        status=task.status,
+        assigned_to=Assignee(id=task.assignee.user_id, email=task.assignee.email) if task.assignee else None
+    )
