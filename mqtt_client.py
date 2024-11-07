@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import psycopg2
 import regex as re
@@ -14,10 +14,12 @@ from redis_client import client as redis_client
 from models.Status import Status as Model_Status
 from models.unit import Unit
 from paho.mqtt import client as mqtt_client
-from utils import add_task
+from utils import add_task, get_tz_datetime
 from websocket_manager import manager, notification_manager, NOTI_TYPE, Notification
 from config import MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID, POWERLOST_THRESHOLD
+import pytz
 
+local_tz = pytz.timezone('Asia/Ho_Chi_Minh')  # Or your local timezone
 
 class COMMAND(Enum):
     TOGGLE = "TOGGLE"
@@ -87,16 +89,19 @@ class Client(mqtt_client.Client):
         # Store the status in the database
         session = SessionLocal()
         try:
-            # Check if the timestamp already exists
-            time = datetime.fromtimestamp(body['time'])
+            # TODO: Convert timestamp to local timezone
+            # This is a temporary solution, as the device return incorrect offset eventhough correct datetime
+            time = get_tz_datetime()
+            # Set body["time"] with time as timestamp
+            body["time"] = time
+            # Print timezone of time
             status = session.query(Model_Status).filter(Model_Status.unit_id == unit_id, Model_Status.time == time).first()
-            
             if status:
                 print("Status already exists")
                 return
             new_status = Model_Status(
                 unit_id=unit_id,
-                time=datetime.fromtimestamp(body['time']),
+                time=time,
                 power=body['power'],
                 current=body['current'],
                 voltage=body['voltage'],
@@ -151,7 +156,7 @@ class Client(mqtt_client.Client):
             return
         status = {
             "alive": body,
-            "time": datetime.now().isoformat()
+            "time": get_tz_datetime()
         }
         # Only set the status in Redis if the device is disconnected
         print(f"Device {unit_id} is {body}")

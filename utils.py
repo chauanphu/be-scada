@@ -1,6 +1,8 @@
 # utils.py
 
+from datetime import datetime
 from passlib.context import CryptContext
+import pytz
 from models.Account import Account
 from models.Audit import Audit
 from models.Task import TaskType, TaskTypeEnum
@@ -21,6 +23,15 @@ def save_audit_log(db, email: str, action: str, details: str):
     db.add(audit)
     db.commit()
     return audit
+
+def get_tz_datetime(timestamp: int | None = None) -> datetime:
+    if not timestamp:
+        # Get current time
+        return datetime.now(pytz.UTC)
+    else:   
+        utc_dt = datetime.fromtimestamp(timestamp, pytz.UTC)
+        time = utc_dt.replace(tzinfo=pytz.FixedOffset(420))
+        return time
 
 def add_task(device_id: int, type: TaskTypeEnum):
     from models.Task import Task, TaskStatus
