@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -26,15 +27,28 @@ def upgrade() -> None:
     sa.Column('value', sa.String(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('key'),
-    sa.UniqueConstraint('value')
+    sa.UniqueConstraint('value'),
+    if_not_exists=True
     )
+    status_enum = postgresql.ENUM(
+        'PENDING', 'IN_PROGRESS', 'COMPLETED',
+        name='taskstatus',
+        create_type=True
+    )
+    with op.get_context().autocommit_block():
+        status_enum.create(op.get_bind(), checkfirst=True)
+
     op.create_table('tasks',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('time', sa.DateTime(), nullable=True),
     sa.Column('device_id', sa.Integer(), nullable=False),
     sa.Column('type_id', sa.Integer(), nullable=False),
     sa.Column('assignee_id', sa.Integer(), nullable=True),
-    sa.Column('status', sa.Enum('PENDING', 'IN_PROGRESS', 'COMPLETED', name='taskstatus'), nullable=False),
+    sa.Column('status', postgresql.ENUM(
+        'PENDING', 'IN_PROGRESS', 'COMPLETED',
+        name='taskstatus',
+        create_type=False
+    ), nullable=False),
     sa.ForeignKeyConstraint(['assignee_id'], ['account.user_id'], ),
     sa.ForeignKeyConstraint(['device_id'], ['units.id'], ),
     sa.ForeignKeyConstraint(['type_id'], ['task_types.id'], ),
@@ -50,5 +64,13 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_audit_action'), table_name='audit')
     op.drop_index(op.f('ix_tasks_id'), table_name='tasks')
     op.drop_table('tasks')
+    status_enum = postgresql.ENUM(
+        'PENDING', 'IN_PROGRESS', 'COMPLETED',
+        name='taskstatus',
+        create_type=True
+    )
+    with op.get_context().autocommit_block():
+        status_enum.drop(op.get_bind(), checkfirst=False)
+    
     op.drop_table('task_types')
     # ### end Alembic commands ###

@@ -32,7 +32,7 @@ class Role(Base):
     
     role_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     role_name = Column(String, nullable=False, unique=True)
-
+    rank = Column(Integer, nullable=False, default=1)
     permissions = relationship('Permission', secondary=role_permission_table, back_populates='roles')
 
 print("Role model created successfully.")
@@ -45,7 +45,7 @@ class Account(Base):
     
     user_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     email = Column(String, nullable=False, unique=True)
-    username = Column(VARCHAR(20), nullable=False, unique=True)
+    username = Column(VARCHAR(50), nullable=False, unique=True)
     password = Column(String, nullable=False)
     created = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

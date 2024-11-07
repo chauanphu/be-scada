@@ -1,4 +1,6 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from auth import get_current_user
 from database import session
 from .dependencies import required_permission
@@ -279,3 +281,48 @@ def delete_role(role_id: int, current_user: Account = Depends(get_current_user) 
     # Add to audit log
     save_audit_log(db, current_user.email, ActionEnum.DELETE, f"Xóa chức vụ {role.role_name}")
     return {"detail": "Role deleted successfully"}
+
+class PasswordChange(BaseModel):
+    new_password: str = Field(min_length=6)
+
+@router.put("/change-password/{user_id}", response_model=dict)
+def change_password(
+    password_data: PasswordChange,
+    user_id: Optional[int] = None,
+    db: session = Depends(session.get_db),
+    current_user: Account = Depends(get_current_user)
+):
+    # If user_id not provided, change own password
+    target_user = current_user if user_id is None else db.query(Account).filter(Account.user_id == user_id).first()
+    
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Allow self password change or check permissions for other users
+    if target_user.user_id != current_user.user_id:
+        # Get roles to compare ranks
+        current_role: Role = db.query(Role).filter(Role.role_id == current_user.role).first()
+        target_role: Role = db.query(Role).filter(Role.role_id == target_user.role).first()
+        
+        # Check if current user has higher rank
+        if not current_role or not target_role or current_role.rank >= target_role.rank:
+            raise HTTPException(
+                status_code=403, 
+                detail="You can only change passwords of users with lower rank"
+            )
+
+    # Hash and update password
+    hashed_pwd = hash_password(password_data.new_password)
+    target_user.password = hashed_pwd
+    
+    db.commit()
+    
+    # Create audit log
+    action_desc = (
+        f"Thay đổi mật khẩu của tài khoản {target_user.username}" 
+        if target_user != current_user 
+        else "Tự thay đổi mật khẩu"
+    )
+    save_audit_log(db, current_user.email, ActionEnum.UPDATE, action_desc)
+
+    return {"message": "Password updated successfully"}

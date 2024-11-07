@@ -1,5 +1,3 @@
-from .__init__ import Base, engine
-
 # from models.user import User
 from models.Account import Account, Role, Permission
 from models.Status import *
@@ -38,13 +36,16 @@ def create_default_roles():
         for role_name in role:
             existing_role = session.query(Role).filter(Role.role_name == role_name).first()
             if not existing_role:
-                new_role = Role(role_name=role_name)
+                new_role = Role(role_name=role_name, rank=1)
                 session.add(new_role)
                 session.commit()
                 # Assign all permissions to the admin role
                 all_permissions = session.query(Permission).all()
                 new_role.permissions = all_permissions
                 session.commit()
+            else:
+                # Update the rank of the role
+                existing_role.rank = 1
                 
     except Exception as e:
         session.rollback()
@@ -101,28 +102,32 @@ def create_default_admin():
         print(f"Error creating admin or superadmin user: {e}")
     finally:
         session.close()
+
 side_roles = {
-    "Quản lý thiết bị": [PermissionEnum.CONFIG_DEVICE, PermissionEnum.CONTROL_DEVICE],
-    "Quản lý người dùng": [PermissionEnum.MANAGE_USER],
-    "Quan sát viên": [PermissionEnum.MONITOR_SYSTEM, PermissionEnum.REPORT, PermissionEnum.VIEW_CHANGE_LOG]
+    "Quản lý thiết bị": ([PermissionEnum.CONFIG_DEVICE, PermissionEnum.CONTROL_DEVICE], 3),
+    "Quản lý người dùng": ([PermissionEnum.MANAGE_USER], 2),
+    "Quan sát viên": ([PermissionEnum.MONITOR_SYSTEM, PermissionEnum.REPORT, PermissionEnum.VIEW_CHANGE_LOG], 3)
 }
 
 def create_side_roles():
     session = SessionLocal()
     try:
-        for role_name, permissions in side_roles.items():
+        for role_name, (permissions, rank) in side_roles.items():
             existing_role = session.query(Role).filter(Role.role_name == role_name).first()
+            existing_permissions = session.query(Permission).filter(Permission.permission_name.in_([permission.value for permission in permissions])).all()
             if not existing_role:
                 new_role = Role(role_name=role_name)
                 session.add(new_role)
                 session.commit()
                 # Assign permissions to the role
-                for permission in permissions:
-                    permission_name = permission.value
-                    existing_permission = session.query(Permission).filter(Permission.permission_name == permission_name).first()
-                    if existing_permission:
-                        new_role.permissions.append(existing_permission)
-                    print(f"Added permission {permission_name} to role {role_name}")
+                if existing_permissions and len(existing_permissions) == len(permissions):
+                    new_role.rank = rank
+                    new_role.permissions = existing_permissions
+                session.commit()
+            else:
+                if existing_permissions and len(existing_permissions) == len(permissions):
+                    existing_role.rank = rank
+                    existing_role.permissions = existing_permissions
                 session.commit()
     except Exception as e:
         session.rollback()
