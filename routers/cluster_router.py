@@ -33,8 +33,13 @@ def get_clusters(
     db: Session = Depends(get_db)):
     # Join the Cluster and Unit tables to get all the clusters and their units
     clusters = db.query(Cluster).options(
-        joinedload(Cluster.units),
+        joinedload(Cluster.units)
     ).all()
+
+    # Sort units by name within each cluster
+    for cluster in clusters:
+        cluster.units.sort(key=lambda x: x.name)
+
     if not clusters:
         raise HTTPException(status_code=404, detail="No clusters found")
     
@@ -146,6 +151,7 @@ def control_unit(
         details += f"{'Bật' if node.payload else 'Tắt'} {unit.name};"
         # Save to the database
         payload = "on" if node.payload else "off"
+        client.command(unit.id, COMMAND.AUTO, "off")
         client.command(unit.id, COMMAND.TOGGLE, payload)
     elif node.type == "auto":
         details += f"Chuyển {unit.name} sang chế độ tự động"

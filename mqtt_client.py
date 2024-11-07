@@ -8,7 +8,7 @@ import logging
 import os
 # Database & Caching
 from database import SessionLocal
-from models.Task import TaskType, TaskTypeEnum
+from models.Task import TaskTypeEnum
 from redis_client import client as redis_client
 # MQTT, Websocket
 from models.Status import Status as Model_Status
