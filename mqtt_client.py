@@ -86,14 +86,15 @@ class Client(mqtt_client.Client):
 
     def handle_status(self, unit_id, payload):
         body = json.loads(payload)
+        body["time"] = get_tz_datetime().timestamp()
         # Store the status in the database
         session = SessionLocal()
+        energy_consumption = body["power"] / 1000 / 720 # Convert power to kWh and update every 5 seconds
         try:
             # TODO: Convert timestamp to local timezone
             # This is a temporary solution, as the device return incorrect offset eventhough correct datetime
             time = get_tz_datetime()
             # Set body["time"] with time as timestamp
-            body["time"] = time
             # Print timezone of time
             status = session.query(Model_Status).filter(Model_Status.unit_id == unit_id, Model_Status.time == time).first()
             if status:
@@ -108,7 +109,7 @@ class Client(mqtt_client.Client):
                 toggle=body['toggle'],
                 power_factor=body['power_factor'],
                 frequency=body['frequency'],
-                total_energy=body['total_energy']
+                total_energy=energy_consumption
             )
             session.add(new_status)
             session.commit()

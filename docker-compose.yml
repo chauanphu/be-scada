@@ -3,7 +3,7 @@ version: '3.8'
 services:
   scada_be:
     build: .
-    image: scada_be:1.1.1
+    image: scada_be:1.5.0
     container_name: scada_be
     ports:
       - "8000:8000"
